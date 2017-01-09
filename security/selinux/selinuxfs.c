@@ -126,13 +126,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	if (sscanf(page, "%d", &new_value) != 1)
 		goto out;
 
-	new_value = !!new_value;
-
-	old_value = enforcing_enabled(&selinux_state);
-
-	if (new_value != old_value) {
-		length = avc_has_perm(&selinux_state,
-				      current_sid(), SECINITSID_SECURITY,
+	if (new_value != selinux_enforcing) {
+		length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 				      SECCLASS_SECURITY, SECURITY__SETENFORCE,
 				      NULL);
 		if (length)
@@ -338,8 +333,7 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 
 	mutex_lock(&sel_mutex);
 
-	rc = avc_has_perm(&selinux_state,
-			  current_sid(), SECINITSID_SECURITY,
+	rc = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (rc)
 		goto err;
@@ -401,8 +395,7 @@ static ssize_t sel_read_policy(struct file *filp, char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	ret = avc_has_perm(&selinux_state,
-			   current_sid(), SECINITSID_SECURITY,
+	ret = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (ret)
 		goto out;
@@ -473,8 +466,7 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__LOAD_POLICY, NULL);
 	if (length)
 		goto out;
@@ -539,8 +531,7 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 	u32 sid, len;
 	ssize_t length;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__CHECK_CONTEXT, NULL);
 	if (length)
 		goto out;
@@ -585,8 +576,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 	ssize_t length;
 	unsigned int new_value;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__SETCHECKREQPROT,
 			      NULL);
 	if (length)
@@ -629,8 +619,7 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	u16 tclass;
 	int rc;
 
-	rc = avc_has_perm(&selinux_state,
-			  current_sid(), SECINITSID_SECURITY,
+	rc = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			  SECCLASS_SECURITY, SECURITY__VALIDATE_TRANS, NULL);
 	if (rc)
 		goto out;
@@ -762,8 +751,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	struct av_decision avd;
 	ssize_t length;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_AV, NULL);
 	if (length)
 		goto out;
@@ -816,8 +804,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	u32 len;
 	int nargs;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_CREATE,
 			      NULL);
 	if (length)
@@ -919,8 +906,7 @@ static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size)
 	char *newcon = NULL;
 	u32 len;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_RELABEL,
 			      NULL);
 	if (length)
@@ -982,8 +968,7 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	int i, rc;
 	u32 len, nsids;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
 			      NULL);
 	if (length)
@@ -1048,8 +1033,7 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	char *newcon = NULL;
 	u32 len;
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_MEMBER,
 			      NULL);
 	if (length)
@@ -1162,8 +1146,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__SETBOOL,
 			      NULL);
 	if (length)
@@ -1221,8 +1204,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 
 	mutex_lock(&sel_mutex);
 
-	length = avc_has_perm(&selinux_state,
-			      current_sid(), SECINITSID_SECURITY,
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__SETBOOL,
 			      NULL);
 	if (length)
@@ -1384,8 +1366,7 @@ static ssize_t sel_write_avc_cache_threshold(struct file *file,
 	ssize_t ret;
 	unsigned int new_value;
 
-	ret = avc_has_perm(&selinux_state,
-			   current_sid(), SECINITSID_SECURITY,
+	ret = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			   SECCLASS_SECURITY, SECURITY__SETSECPARAM,
 			   NULL);
 	if (ret)

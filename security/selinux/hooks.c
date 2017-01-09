@@ -2160,25 +2160,21 @@ static int selinux_ptrace_access_check(struct task_struct *child,
 	u32 csid = task_sid(child);
 
 	if (mode & PTRACE_MODE_READ)
-		return avc_has_perm(&selinux_state,
-				    sid, csid, SECCLASS_FILE, FILE__READ, NULL);
+		return avc_has_perm(sid, csid, SECCLASS_FILE, FILE__READ, NULL);
 
-	return avc_has_perm(&selinux_state,
-			    sid, csid, SECCLASS_PROCESS, PROCESS__PTRACE, NULL);
+	return avc_has_perm(sid, csid, SECCLASS_PROCESS, PROCESS__PTRACE, NULL);
 }
 
 static int selinux_ptrace_traceme(struct task_struct *parent)
 {
-	return avc_has_perm(&selinux_state,
-			    task_sid(parent), current_sid(), SECCLASS_PROCESS,
+	return avc_has_perm(task_sid(parent), current_sid(), SECCLASS_PROCESS,
 			    PROCESS__PTRACE, NULL);
 }
 
 static int selinux_capget(struct task_struct *target, kernel_cap_t *effective,
 			  kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(target), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(target), SECCLASS_PROCESS,
 			    PROCESS__GETCAP, NULL);
 }
 
@@ -2187,8 +2183,7 @@ static int selinux_capset(struct cred *new, const struct cred *old,
 			  const kernel_cap_t *inheritable,
 			  const kernel_cap_t *permitted)
 {
-	return avc_has_perm(&selinux_state,
-			    cred_sid(old), cred_sid(new), SECCLASS_PROCESS,
+	return avc_has_perm(cred_sid(old), cred_sid(new), SECCLASS_PROCESS,
 			    PROCESS__SETCAP, NULL);
 }
 
@@ -2248,21 +2243,18 @@ static int selinux_syslog(int type)
 	switch (type) {
 	case SYSLOG_ACTION_READ_ALL:	/* Read last kernel messages */
 	case SYSLOG_ACTION_SIZE_BUFFER:	/* Return size of the log buffer */
-		return avc_has_perm(&selinux_state,
-				    current_sid(), SECINITSID_KERNEL,
+		return avc_has_perm(current_sid(), SECINITSID_KERNEL,
 				    SECCLASS_SYSTEM, SYSTEM__SYSLOG_READ, NULL);
 	case SYSLOG_ACTION_CONSOLE_OFF:	/* Disable logging to console */
 	case SYSLOG_ACTION_CONSOLE_ON:	/* Enable logging to console */
 	/* Set level of messages printed to console */
 	case SYSLOG_ACTION_CONSOLE_LEVEL:
-		return avc_has_perm(&selinux_state,
-				    current_sid(), SECINITSID_KERNEL,
+		return avc_has_perm(current_sid(), SECINITSID_KERNEL,
 				    SECCLASS_SYSTEM, SYSTEM__SYSLOG_CONSOLE,
 				    NULL);
 	}
 	/* All other syslog types */
-	return avc_has_perm(&selinux_state,
-			    current_sid(), SECINITSID_KERNEL,
+	return avc_has_perm(current_sid(), SECINITSID_KERNEL,
 			    SECCLASS_SYSTEM, SYSTEM__SYSLOG_MOD, NULL);
 }
 
@@ -3599,8 +3591,7 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 		 * private file mapping that will also be writable.
 		 * This has an additional check.
 		 */
-		rc = avc_has_perm(&selinux_state,
-				  sid, sid, SECCLASS_PROCESS,
+		rc = avc_has_perm(sid, sid, SECCLASS_PROCESS,
 				  PROCESS__EXECMEM, NULL);
 		if (rc)
 			goto error;
@@ -3663,15 +3654,13 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
-			rc = avc_has_perm(&selinux_state,
-					  sid, sid, SECCLASS_PROCESS,
+			rc = avc_has_perm(sid, sid, SECCLASS_PROCESS,
 					  PROCESS__EXECHEAP, NULL);
 		} else if (!vma->vm_file &&
 			   ((vma->vm_start <= vma->vm_mm->start_stack &&
 			     vma->vm_end >= vma->vm_mm->start_stack) ||
 			    vma_is_stack_for_current(vma))) {
-			rc = avc_has_perm(&selinux_state,
-					  sid, sid, SECCLASS_PROCESS,
+			rc = avc_has_perm(sid, sid, SECCLASS_PROCESS,
 					  PROCESS__EXECSTACK, NULL);
 		} else if (vma->vm_file && vma->anon_vma) {
 			/*
@@ -3808,8 +3797,7 @@ static int selinux_task_create(unsigned long clone_flags)
 {
 	u32 sid = current_sid();
 
-	return avc_has_perm(&selinux_state,
-			    sid, sid, SECCLASS_PROCESS, PROCESS__FORK, NULL);
+	return avc_has_perm(sid, sid, SECCLASS_PROCESS, PROCESS__FORK, NULL);
 }
 
 /*
@@ -3926,8 +3914,7 @@ static int selinux_kernel_module_request(char *kmod_name)
 	ad.type = LSM_AUDIT_DATA_KMOD;
 	ad.u.kmod_name = kmod_name;
 
-	return avc_has_perm(&selinux_state,
-			    current_sid(), SECINITSID_KERNEL, SECCLASS_SYSTEM,
+	return avc_has_perm(current_sid(), SECINITSID_KERNEL, SECCLASS_SYSTEM,
 			    SYSTEM__MODULE_REQUEST, &ad);
 }
 
@@ -3982,22 +3969,19 @@ static int selinux_kernel_read_file(struct file *file,
 
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__SETPGID, NULL);
 }
 
 static int selinux_task_getpgid(struct task_struct *p)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__GETPGID, NULL);
 }
 
 static int selinux_task_getsid(struct task_struct *p)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__GETSESSION, NULL);
 }
 
@@ -4008,22 +3992,19 @@ static void selinux_task_getsecid(struct task_struct *p, u32 *secid)
 
 static int selinux_task_setnice(struct task_struct *p, int nice)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__SETSCHED, NULL);
 }
 
 static int selinux_task_setioprio(struct task_struct *p, int ioprio)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__SETSCHED, NULL);
 }
 
 static int selinux_task_getioprio(struct task_struct *p)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__GETSCHED, NULL);
 }
 
@@ -4037,8 +4018,7 @@ static int selinux_task_setrlimit(struct task_struct *p, unsigned int resource,
 	   later be used as a safe reset point for the soft limit
 	   upon context transitions.  See selinux_bprm_committing_creds. */
 	if (old_rlim->rlim_max != new_rlim->rlim_max)
-		return avc_has_perm(&selinux_state,
-				    current_sid(), task_sid(p),
+		return avc_has_perm(current_sid(), task_sid(p),
 				    SECCLASS_PROCESS, PROCESS__SETRLIMIT, NULL);
 
 	return 0;
@@ -4046,22 +4026,19 @@ static int selinux_task_setrlimit(struct task_struct *p, unsigned int resource,
 
 static int selinux_task_setscheduler(struct task_struct *p)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__SETSCHED, NULL);
 }
 
 static int selinux_task_getscheduler(struct task_struct *p)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__GETSCHED, NULL);
 }
 
 static int selinux_task_movememory(struct task_struct *p)
 {
-	return avc_has_perm(&selinux_state,
-			    current_sid(), task_sid(p), SECCLASS_PROCESS,
+	return avc_has_perm(current_sid(), task_sid(p), SECCLASS_PROCESS,
 			    PROCESS__SETSCHED, NULL);
 }
 
@@ -4076,8 +4053,13 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 		perm = signal_to_av(sig);
 	if (!secid)
 		secid = current_sid();
-	return avc_has_perm(&selinux_state,
-			    secid, task_sid(p), SECCLASS_PROCESS, perm, NULL);
+	return avc_has_perm(secid, task_sid(p), SECCLASS_PROCESS, perm, NULL);
+}
+
+static int selinux_task_wait(struct task_struct *p)
+{
+	return avc_has_perm(task_sid(p), current_sid(), SECCLASS_PROCESS,
+			    PROCESS__SIGCHLD, NULL);
 }
 
 static void selinux_task_to_inode(struct task_struct *p,
@@ -4382,8 +4364,7 @@ static int sock_has_perm(struct sock *sk, u32 perms)
 	ad.u.net = &net;
 	ad.u.net->sk = sk;
 
-	return avc_has_perm(&selinux_state,
-			    current_sid(), sksec->sid, sksec->sclass, perms,
+	return avc_has_perm(current_sid(), sksec->sid, sksec->sclass, perms,
 			    &ad);
 }
 
@@ -5666,8 +5647,7 @@ static int selinux_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 	case IPC_INFO:
 	case MSG_INFO:
 		/* No specific object, just general system-wide information. */
-		return avc_has_perm(&selinux_state,
-				    current_sid(), SECINITSID_KERNEL,
+		return avc_has_perm(current_sid(), SECINITSID_KERNEL,
 				    SECCLASS_SYSTEM, SYSTEM__IPC_INFO, NULL);
 	case IPC_STAT:
 	case MSG_STAT:
@@ -5817,8 +5797,7 @@ static int selinux_shm_shmctl(struct shmid_kernel *shp, int cmd)
 	case IPC_INFO:
 	case SHM_INFO:
 		/* No specific object, just general system-wide information. */
-		return avc_has_perm(&selinux_state,
-				    current_sid(), SECINITSID_KERNEL,
+		return avc_has_perm(current_sid(), SECINITSID_KERNEL,
 				    SECCLASS_SYSTEM, SYSTEM__IPC_INFO, NULL);
 	case IPC_STAT:
 	case SHM_STAT:
@@ -5913,8 +5892,7 @@ static int selinux_sem_semctl(struct sem_array *sma, int cmd)
 	case IPC_INFO:
 	case SEM_INFO:
 		/* No specific object, just general system-wide information. */
-		return avc_has_perm(&selinux_state,
-				    current_sid(), SECINITSID_KERNEL,
+		return avc_has_perm(current_sid(), SECINITSID_KERNEL,
 				    SECCLASS_SYSTEM, SYSTEM__IPC_INFO, NULL);
 	case GETPID:
 	case GETNCNT:
@@ -6000,8 +5978,7 @@ static int selinux_getprocattr(struct task_struct *p,
 	__tsec = __task_cred(p)->security;
 
 	if (current != p) {
-		error = avc_has_perm(&selinux_state,
-				     current_sid(), __tsec->sid,
+		error = avc_has_perm(current_sid(), __tsec->sid,
 				     SECCLASS_PROCESS, PROCESS__GETATTR, NULL);
 		if (error)
 			goto bad;
@@ -6061,24 +6038,19 @@ static int selinux_setprocattr(struct task_struct *p,
 	 * Basic control over ability to set these attributes at all.
 	 */
 	if (!strcmp(name, "exec"))
-		error = avc_has_perm(&selinux_state,
-				     mysid, mysid, SECCLASS_PROCESS,
+		error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS,
 				     PROCESS__SETEXEC, NULL);
 	else if (!strcmp(name, "fscreate"))
-		error = avc_has_perm(&selinux_state,
-				     mysid, mysid, SECCLASS_PROCESS,
+		error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS,
 				     PROCESS__SETFSCREATE, NULL);
 	else if (!strcmp(name, "keycreate"))
-		error = avc_has_perm(&selinux_state,
-				     mysid, mysid, SECCLASS_PROCESS,
+		error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS,
 				     PROCESS__SETKEYCREATE, NULL);
 	else if (!strcmp(name, "sockcreate"))
-		error = avc_has_perm(&selinux_state,
-				     mysid, mysid, SECCLASS_PROCESS,
+		error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS,
 				     PROCESS__SETSOCKCREATE, NULL);
 	else if (!strcmp(name, "current"))
-		error = avc_has_perm(&selinux_state,
-				     mysid, mysid, SECCLASS_PROCESS,
+		error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS,
 				     PROCESS__SETCURRENT, NULL);
 	else
 		error = -EINVAL;
@@ -6135,8 +6107,7 @@ static int selinux_setprocattr(struct task_struct *p,
 	} else if (!strcmp(name, "fscreate")) {
 		tsec->create_sid = sid;
 	} else if (!strcmp(name, "keycreate")) {
-		error = avc_has_perm(&selinux_state,
-				     mysid, sid, SECCLASS_KEY, KEY__CREATE,
+		error = avc_has_perm(mysid, sid, SECCLASS_KEY, KEY__CREATE,
 				     NULL);
 		if (error)
 			goto abort_change;
