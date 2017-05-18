@@ -41,6 +41,17 @@
 #include "objsec.h"
 #include "conditional.h"
 
+unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
+
+static int __init checkreqprot_setup(char *str)
+{
+	unsigned long checkreqprot;
+	if (!kstrtoul(str, 0, &checkreqprot))
+		selinux_checkreqprot = checkreqprot ? 1 : 0;
+	return 1;
+}
+__setup("checkreqprot=", checkreqprot_setup);
+
 static DEFINE_MUTEX(sel_mutex);
 
 /* global data for booleans */

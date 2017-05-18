@@ -71,13 +71,45 @@
 #include "audit.h"
 
 /* Policy capability names */
-const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX] = {
+char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX] = {
 	"network_peer_controls",
 	"open_perms",
 	"compat1",
 	"always_check_network",
-	"compat2",
-	"nnp_nosuid_transition"
+	"compat2"
+};
+
+int selinux_policycap_netpeer;
+int selinux_policycap_openperm;
+int selinux_policycap_alwaysnetwork;
+
+static DEFINE_RWLOCK(policy_rwlock);
+
+static struct sidtab sidtab;
+struct policydb policydb;
+int ss_initialized __aligned(0x1000) __attribute__((section(".bss_rtic")));
+/*
+ * The largest sequence number that has been used when
+ * providing an access decision to the access vector cache.
+ * The sequence number only changes when a policy change
+ * occurs.
+ */
+static u32 latest_granting;
+
+/* Forward declaration. */
+static int context_struct_to_string(struct context *context, char **scontext,
+				    u32 *scontext_len);
+
+static void context_struct_compute_av(struct context *scontext,
+					struct context *tcontext,
+					u16 tclass,
+					struct av_decision *avd,
+					struct extended_perms *xperms);
+
+struct selinux_mapping {
+	u16 value; /* policy value */
+	unsigned num_perms;
+	u32 perms[sizeof(u32) * 8];
 };
 
 static struct selinux_ss selinux_ss;
@@ -2067,27 +2099,26 @@ bad:
 
 static void security_load_policycaps(struct selinux_state *state)
 {
-	struct policydb *p = &state->ss->policydb;
 	unsigned int i;
 	struct ebitmap_node *node;
 
-	for (i = 0; i < ARRAY_SIZE(state->policycap); i++)
-		state->policycap[i] = ebitmap_get_bit(&p->policycaps, i);
+	selinux_policycap_netpeer = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_NETPEER);
+	selinux_policycap_openperm = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_OPENPERM);
+	selinux_policycap_alwaysnetwork = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_ALWAYSNETWORK);
 
 	for (i = 0; i < ARRAY_SIZE(selinux_policycap_names); i++)
 		pr_info("SELinux:  policy capability %s=%d\n",
 			selinux_policycap_names[i],
-			ebitmap_get_bit(&p->policycaps, i));
+			ebitmap_get_bit(&policydb.policycaps, i));
 
-	ebitmap_for_each_positive_bit(&p->policycaps, node, i) {
+	ebitmap_for_each_positive_bit(&policydb.policycaps, node, i) {
 		if (i >= ARRAY_SIZE(selinux_policycap_names))
 			pr_info("SELinux:  unknown policy capability %u\n",
 				i);
 	}
-
-	state->android_netlink_route = p->android_netlink_route;
-	state->android_netlink_getneigh = p->android_netlink_getneigh;
-	selinux_nlmsg_init();
 }
 
 static int security_preserve_bools(struct selinux_state *state,
