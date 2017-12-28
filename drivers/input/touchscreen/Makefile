@@ -112,3 +112,5 @@ obj-y += ts_init.o
 obj-$(CONFIG_TOUCHSCREEN_SYSCTL) += ts_sysctl.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL308U) += Atmel308U/
 obj-$(CONFIG_TOUCHSCREEN_FTS) += focaltech_touch/
+obj-$(CONFIG_TOUCHSCREEN_SWEEP2WAKE)	+= sweep2wake.o
+obj-$(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE)	+= doubletap2wake.o
