@@ -1023,7 +1023,7 @@ static noinline int avc_denied(struct selinux_state *state,
 	if (flags & AVC_STRICT)
 		return -EACCES;
 
-	if (is_enforcing(&selinux_state) &&
+	if (enforcing_enabled(&selinux_state) &&
 	    !(avd->flags & AVD_FLAGS_PERMISSIVE))
 		return -EACCES;
 
