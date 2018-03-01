@@ -178,7 +178,8 @@ static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
 	char *scontext;
 	u32 scontext_len;
 
-	rc = security_sid_to_context(state, ssid, &scontext, &scontext_len);
+	rc = security_sid_to_context(&selinux_state, ssid,
+				     &scontext, &scontext_len);
 	if (rc)
 		audit_log_format(ab, "ssid=%d", ssid);
 	else {
@@ -186,7 +187,8 @@ static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
 		kfree(scontext);
 	}
 
-	rc = security_sid_to_context(state, tsid, &scontext, &scontext_len);
+	rc = security_sid_to_context(&selinux_state, tsid,
+				     &scontext, &scontext_len);
 	if (rc)
 		audit_log_format(ab, " tsid=%d", tsid);
 	else {
@@ -1006,7 +1008,8 @@ struct avc_node *avc_compute_av(struct selinux_state *state,
 {
 	rcu_read_unlock();
 	INIT_LIST_HEAD(&xp_node->xpd_head);
-	security_compute_av(state, ssid, tsid, tclass, avd, &xp_node->xp);
+	security_compute_av(&selinux_state, ssid, tsid, tclass,
+			    avd, &xp_node->xp);
 	rcu_read_lock();
 	return avc_insert(state->avc, ssid, tsid, tclass, avd, xp_node);
 }
@@ -1020,7 +1023,7 @@ static noinline int avc_denied(struct selinux_state *state,
 	if (flags & AVC_STRICT)
 		return -EACCES;
 
-	if (enforcing_enabled(state) &&
+	if (is_enforcing(&selinux_state) &&
 	    !(avd->flags & AVD_FLAGS_PERMISSIVE))
 		return -EACCES;
 
@@ -1083,8 +1086,8 @@ int avc_has_extended_perms(struct selinux_state *state,
 			goto decision;
 		}
 		rcu_read_unlock();
-		security_compute_xperms_decision(state, ssid, tsid, tclass,
-						 driver, &local_xpd);
+		security_compute_xperms_decision(&selinux_state, ssid, tsid,
+						 tclass, driver, &local_xpd);
 		rcu_read_lock();
 		avc_update_node(state->avc, AVC_CALLBACK_ADD_XPERMS, requested,
 				driver, xperm, ssid, tsid, tclass, avd.seqno,
