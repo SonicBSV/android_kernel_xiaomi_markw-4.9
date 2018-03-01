@@ -98,7 +98,7 @@ static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
 	ssize_t length;
 
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%d",
-			   enforcing_enabled(&selinux_state));
+			   is_enforcing(&selinux_state));
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
 
@@ -128,11 +128,10 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 
 	new_value = !!new_value;
 
-	old_value = enforcing_enabled(&selinux_state);
+	old_value = is_enforcing(&selinux_state);
 
 	if (new_value != old_value) {
-		length = avc_has_perm(&selinux_state,
-				      current_sid(), SECINITSID_SECURITY,
+		length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 				      SECCLASS_SECURITY, SECURITY__SETENFORCE,
 				      NULL);
 		if (length)
@@ -142,9 +141,9 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 			new_value, old_value,
 			from_kuid(&init_user_ns, audit_get_loginuid(current)),
 			audit_get_sessionid(current));
-		enforcing_set(&selinux_state, new_value);
+		set_enforcing(&selinux_state, new_value);
 		if (new_value)
-			avc_ss_reset(state->avc, 0);
+			avc_ss_reset(0);
 		selnl_notify_setenforce(new_value);
 		selinux_status_update_setenforce(&selinux_state,
 						 new_value);
