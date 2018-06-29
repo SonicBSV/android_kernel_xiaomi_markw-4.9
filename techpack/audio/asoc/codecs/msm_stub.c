@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2014, 2017, 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, 2017-2019, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -72,6 +72,7 @@ static struct platform_driver msm_stub_driver = {
 		.name = "msm-stub-codec",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_stub_codec_dt_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = msm_stub_dev_probe,
 	.remove = msm_stub_dev_remove,

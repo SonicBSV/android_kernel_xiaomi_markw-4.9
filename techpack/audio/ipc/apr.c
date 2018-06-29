@@ -1194,6 +1194,7 @@ static struct platform_driver apr_driver = {
 		.name = "audio_apr",
 		.owner = THIS_MODULE,
 		.of_match_table = apr_machine_of_match,
+		.suppress_bind_attrs = true,
 	}
 };
 
