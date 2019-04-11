@@ -30,8 +30,11 @@
 					"WSA_SPK OUT", "VDD_WSA_SWITCH",
 					"SpkrMono WSA_IN", "WSA_SPK OUT";
 
-    /delete-property/ asoc-wsa-codec-names;
-    /delete-property/ asoc-wsa-codec-prefixes;
+	/delete-property/ asoc-wsa-codec-names;
+	/delete-property/ asoc-wsa-codec-prefixes;
+	/delete-property/ msm-vdd-wsa-switch-supply;
+	/delete-property/ qcom,msm-vdd-wsa-switch-voltage;
+	/delete-property/ qcom,msm-vdd-wsa-switch-current;
 };
 
 &wsa881x_i2c_f {
