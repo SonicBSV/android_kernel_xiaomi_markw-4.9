@@ -252,6 +252,8 @@ static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
 
 	down_read(&current->mm->mmap_sem);
 
+	vaddr = untagged_addr(vaddr);
+
 retry:
 	vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
 
