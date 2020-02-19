@@ -576,7 +576,6 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	bool locked = false;
 
 	addr = untagged_addr(addr);
-	new_addr = untagged_addr(new_addr);
 
 	/*
 	 * Architectures may interpret the tag passed to mmap as a background
