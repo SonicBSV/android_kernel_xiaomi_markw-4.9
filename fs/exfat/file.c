@@ -227,7 +227,7 @@ void exfat_truncate(struct inode *inode, loff_t size)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 72)
 	unsigned int blocksize = i_blocksize(inode);
 #else
-	unsigned int blocksize = 1 << inode->i_blkbits;
+	unsigned int blocksize = _blocksize(inode);;
 #endif
 	loff_t aligned_size;
 	int err;
