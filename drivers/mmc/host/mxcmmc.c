@@ -1228,7 +1228,9 @@ static struct platform_driver mxcmci_driver = {
 	.id_table	= mxcmci_devtype,
 	.driver		= {
 		.name		= DRIVER_NAME,
+	#ifndef CONFIG_SUSPEND_SKIP_SYNC
 		.pm	= &mxcmci_pm_ops,
+	#endif
 		.of_match_table	= mxcmci_of_match,
 	}
 };
