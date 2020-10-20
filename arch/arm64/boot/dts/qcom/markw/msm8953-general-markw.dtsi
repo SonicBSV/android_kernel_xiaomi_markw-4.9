@@ -27,6 +27,12 @@
     };
 };
 
+&pmi_haptic {
+	qcom,actuator-type = <1>;
+	qcom,use-play-irq;
+	qcom,use-sc-irq;
+};
+
 &pmic_analog_codec {
 	status = "okay";
 };
