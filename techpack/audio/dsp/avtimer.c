@@ -329,28 +329,28 @@ int avcs_core_query_timer(uint64_t *avtimer_tick)
 }
 EXPORT_SYMBOL(avcs_core_query_timer);
 
-#if IS_ENABLED(CONFIG_MSM_AVTIMER)
+//#if IS_ENABLED(CONFIG_MSM_AVTIMER)
+//static void avcs_set_isp_fptr(bool enable)
+//{
+//	struct avtimer_fptr_t av_fptr;
+//
+//	if (enable) {
+//		av_fptr.fptr_avtimer_open = avcs_core_open;
+//		av_fptr.fptr_avtimer_enable = avcs_core_disable_power_collapse;
+//		av_fptr.fptr_avtimer_get_time = avcs_core_query_timer;
+//		msm_isp_set_avtimer_fptr(av_fptr);
+//	} else {
+//		av_fptr.fptr_avtimer_open = NULL;
+//		av_fptr.fptr_avtimer_enable = NULL;
+//		av_fptr.fptr_avtimer_get_time = NULL;
+//		msm_isp_set_avtimer_fptr(av_fptr);
+//	}
+//}
+//#else
 static void avcs_set_isp_fptr(bool enable)
 {
-	struct avtimer_fptr_t av_fptr;
-
-	if (enable) {
-		av_fptr.fptr_avtimer_open = avcs_core_open;
-		av_fptr.fptr_avtimer_enable = avcs_core_disable_power_collapse;
-		av_fptr.fptr_avtimer_get_time = avcs_core_query_timer;
-		msm_isp_set_avtimer_fptr(av_fptr);
-	} else {
-		av_fptr.fptr_avtimer_open = NULL;
-		av_fptr.fptr_avtimer_enable = NULL;
-		av_fptr.fptr_avtimer_get_time = NULL;
-		msm_isp_set_avtimer_fptr(av_fptr);
-	}
 }
-#else
-static void avcs_set_isp_fptr(bool enable)
-{
-}
-#endif
+//#endif
 
 static int avtimer_open(struct inode *inode, struct file *file)
 {

@@ -90,10 +90,10 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = false,
 	.key_code[0] = KEY_MEDIA,
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	.key_code[1] = BTN_1,
-	.key_code[2] = BTN_2,
-	.key_code[3] = 0,
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+	.key_code[1] = KEY_VOLUMEUP,
+	.key_code[2] = KEY_VOLUMEDOWN,
+	.key_code[3] = KEY_VOICECOMMAND,
 #else
 	.key_code[1] = KEY_VOICECOMMAND,
 	.key_code[2] = KEY_VOLUMEUP,
@@ -403,65 +403,44 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 			return -EINVAL;
 		}
 	}
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	gpio_direction_output(pdata->spk_ext_pa_gpio, 0);
-#endif
 	return 0;
 }
 
-static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
-{
-	struct snd_soc_card *card = codec->component.card;
-	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-#ifndef CONFIG_MACH_XIAOMI_MIDO
-	int ret;
-#endif
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	int pa_mode = EXT_PA_MODE;
-#endif
-
-	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
-		pr_err("%s: Invalid gpio: %d\n", __func__,
-			pdata->spk_ext_pa_gpio);
-		return false;
-	}
-
-	pr_debug("%s: %s external speaker PA\n", __func__,
-		enable ? "Enable" : "Disable");
-
-	if (enable) {
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-		while (pa_mode > 0) {
-			gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, 0);
-			udelay(2);
-			gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-			udelay(2);
-			pa_mode--;
-		}
-#else
-		ret =  msm_cdc_pinctrl_select_active_state(
-					pdata->spk_ext_pa_gpio_p);
-		if (ret) {
-			pr_err("%s: gpio set cannot be de-activated %s\n",
-					__func__, "ext_spk_gpio");
-			return ret;
-		}
-		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-#endif
-	} else {
-		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-#ifndef CONFIG_MACH_XIAOMI_MIDO
-		ret = msm_cdc_pinctrl_select_sleep_state(
-				pdata->spk_ext_pa_gpio_p);
-		if (ret) {
-			pr_err("%s: gpio set cannot be de-activated %s\n",
-					__func__, "ext_spk_gpio");
-			return ret;
-		}
-#endif
-	}
-	return 0;
-}
+//static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
+//{
+//	struct snd_soc_card *card = codec->component.card;
+//	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+//
+//	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
+//		pr_err("%s: Invalid gpio: %d\n", __func__,
+//			pdata->spk_ext_pa_gpio);
+//		return false;
+//	}
+//
+//	pr_debug("%s: %s external speaker PA\n", __func__,
+//		enable ? "Enable" : "Disable");
+//
+//	if (enable) {
+//		ret =  msm_cdc_pinctrl_select_active_state(
+//					pdata->spk_ext_pa_gpio_p);
+//		if (ret) {
+//			pr_err("%s: gpio set cannot be de-activated %s\n",
+//					__func__, "ext_spk_gpio");
+//			return ret;
+//		}
+//		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
+//	} else {
+//		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
+//		ret = msm_cdc_pinctrl_select_sleep_state(
+//				pdata->spk_ext_pa_gpio_p);
+//		if (ret) {
+//			pr_err("%s: gpio set cannot be de-activated %s\n",
+//					__func__, "ext_spk_gpio");
+//			return ret;
+//		}
+//	}
+//	return 0;
+//}
 
 static bool msm8952_swap_gnd_mic(struct snd_soc_codec *codec, bool active)
 {
@@ -1624,11 +1603,7 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8952_wcd_cal)->X) = (Y))
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	S(v_hs_max, 1600);
-#else
 	S(v_hs_max, 1500);
-#endif
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8952_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -1651,17 +1626,17 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	btn_low[0] = 73;
-	btn_high[0] = 73;
-	btn_low[1] = 233;
-	btn_high[1] = 233;
-	btn_low[2] = 438;
-	btn_high[2] = 438;
-	btn_low[3] = 438;
-	btn_high[3] = 438;
-	btn_low[4] = 438;
-	btn_high[4] = 438;
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+	btn_low[0] = 25;
+	btn_high[0] = 75;
+	btn_low[1] = 200;
+	btn_high[1] = 225;
+	btn_low[2] = 325;
+	btn_high[2] = 450;
+	btn_low[3] = 500;
+	btn_high[3] = 510;
+	btn_low[4] = 530;
+	btn_high[4] = 540;
 #else
 	btn_low[0] = 75;
 	btn_high[0] = 75;
@@ -1711,7 +1686,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_sync(dapm);
 
-	msm_anlg_cdc_spk_ext_pa_cb(enable_spk_ext_pa, ana_cdc);
+//	msm_anlg_cdc_spk_ext_pa_cb(enable_spk_ext_pa, ana_cdc);
 	msm_dig_cdc_hph_comp_cb(config_hph_compander_gpio, dig_cdc);
 
 	mbhc_cfg.calibration = def_msm8952_wcd_mbhc_cal();
@@ -3597,6 +3572,9 @@ err:
 		}
 	}
 err1:
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+	snd_soc_card_set_drvdata(card, NULL);
+#endif
 	devm_kfree(&pdev->dev, pdata);
 	return ret;
 }
