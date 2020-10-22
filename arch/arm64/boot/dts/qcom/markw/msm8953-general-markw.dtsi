@@ -22,21 +22,21 @@
 		    };
 	    };
     };
-    qcom,pm8953@1 {
-        8953_wcd_codec@f000 {
-            status = "okay";
-        };
-
-        8953_wcd_codec@f100 {
-            status = "okay";
-        };
-    };
     qcom,pmi8950@2 {
         /delete-node/ qcom,leds@a100;
     };
 };
 
-&pmi8950_charger {
+&pmic_analog_codec {
+	status = "okay";
+};
+
+&msm_digital_codec {
+	status = "okay";
+};
+
+&qpnp_smbcharger {
+	qcom,battery-data = <&qrd_batterydata>;
 	qcom,float-voltage-mv = <4400>;
 	qcom,resume-delta-mv = <50>;
 	qcom,thermal-mitigation = <2000 1200 1000 800 800>;
@@ -50,7 +50,7 @@
 	/delete-property/ qcom,typec-psy-name;
 };
 
-&pmi8950_fg {
+&qpnp_fg {
 	qcom,resume-soc = <99>;
 	qcom,fg-cutoff-voltage-mv = <3400>;
 	qcom,fg-cc-cv-threshold-mv = <4390>;
@@ -228,6 +228,7 @@
 };
 
 &i2c_3  {
+	status = "okay";
 	/delete-node/ synaptics@4b;
 	ftech@38 {
 		compatible = "focaltech,5336";
@@ -370,19 +371,35 @@
 	};
 };
 
-&qrd_batterydata {
-        qcom,batt-id-range-pct = <15>;
-        #include "battery/MARKW-qrd-Coslight-4v4-4000mah.dtsi"
-        #include "battery/MARKW-qrd-Feimaotui-4v4-4000mah.dtsi"
-        #include "battery/MARKW-qrd-Default-4v4-4000mah.dtsi"
-        /delete-node/ qcom,qrd_msm8937_sku1_2920mah;
+/ {
+	/delete-node/ qcom,battery-data;
+	qrd_batterydata: qcom,battery-data {
+		qcom,batt-id-range-pct = <15>;
+		
+		#include "battery/MARKW-qrd-Coslight-4v4-4000mah.dtsi"
+		#include "battery/MARKW-qrd-Feimaotui-4v4-4000mah.dtsi"
+		#include "battery/MARKW-qrd-Default-4v4-4000mah.dtsi"
+	};
 };
 
 &firmware {
 	android {
+		/delete-node/ vbmeta;
+
 		fstab {
 			vendor {
 				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/cust";
+				fsmgr_flags = "wait";
+				status = "ok";
+			};
+
+			system {
+				compatible = "android,system";
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/system";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait";
+				status = "ok";
 			};
 		};
 	};
