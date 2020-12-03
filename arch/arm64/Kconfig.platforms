@@ -168,6 +168,11 @@ config ARCH_MSM8953
 	  This enables support for the MSM8953 chipset. If you do not
 	  wish to build a kernel that runs on this chipset, say 'N' here.
 
+config MACH_XIAOMI_MARKW
+	bool "Enable Support for XIAOMI Redmi 4 Prime (Markw)"
+	depends on ARCH_MSM8953
+	default n
+
 config ARCH_MSM8937
 	bool "Enable Support for Qualcomm Technologies Inc. MSM8937"
 	depends on ARCH_QCOM
