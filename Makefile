@@ -719,6 +719,12 @@ export DISABLE_LTO
 export LDFINAL_vmlinux LDFLAGS_FINAL_vmlinux
 endif
 
+ifdef CONFIG_GCC_GRAPHITE
+ifeq ($(cc-name),gcc)
+    KBUILD_CFLAGS	+= -fgraphite-identity -floop-nest-optimize
+  endif
+endif
+
 ifdef CONFIG_CFI_CLANG
 cfi-clang-flags	+= -fsanitize=cfi $(call cc-option, -fsplit-lto-unit)
 DISABLE_CFI_CLANG := -fno-sanitize=cfi
@@ -1015,6 +1021,10 @@ endif
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
+endif
+
+ifeq ($(CONFIG_RELR),y)
+LDFLAGS_vmlinux	+= --pack-dyn-relocs=relr
 endif
 
 # Default kernel image to build when no specific target is given.

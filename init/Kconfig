@@ -15,6 +15,9 @@ config DEFCONFIG_LIST
 	default "/boot/config-$UNAME_RELEASE"
 	default "$ARCH_DEFCONFIG"
 	default "arch/$ARCH/defconfig"
+	
+config TOOLS_SUPPORT_RELR
+	bool "Declare tool support for RELR"	
 
 config CONSTRUCTORS
 	bool
@@ -1526,6 +1529,9 @@ config CC_OPTIMIZE_FOR_SIZE
 	  If unsure, say N.
 
 endchoice
+
+config GCC_GRAPHITE
+	bool "Enable GCC Polyhedral Loop Optimization (Graphite)"
 
 config SYSCTL
 	bool
