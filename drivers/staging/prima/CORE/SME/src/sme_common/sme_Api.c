@@ -15508,6 +15508,40 @@ static eHalStatus sme_prepare_mgmt_tx(tHalHandle hal, uint8_t session_id,
     return status;
 }
 
+#ifdef FEATURE_WLAN_SW_PTA
+eHalStatus sme_teardown_link_with_ap(tpAniSirGlobal mac, uint8_t session_id)
+{
+	eHalStatus status = eHAL_STATUS_SUCCESS;
+	struct sir_teardown_link *msg;
+	vos_msg_t vos_message = {0};
+	VOS_STATUS vos_status;
+
+	MTRACE(vos_trace(VOS_MODULE_ID_SME,
+	       TRACE_CODE_SME_TX_HDD_TEARDOWN_LINK_WITH_AP, session_id, 0));
+
+	status = sme_AcquireGlobalLock(&mac->sme);
+	if (HAL_STATUS_SUCCESS(status)) {
+		msg = vos_mem_malloc(sizeof(*msg));
+		if (!msg) {
+			status = eHAL_STATUS_FAILED_ALLOC;
+		} else {
+			msg->type = eWNI_SME_TEARDOWN_LINK_WITH_AP;
+			msg->session_id = session_id;
+			vos_message.bodyptr = msg;
+			vos_message.type =  eWNI_SME_TEARDOWN_LINK_WITH_AP;
+			vos_status = vos_mq_post_message(VOS_MQ_ID_PE,
+							 &vos_message);
+			if (!VOS_IS_STATUS_SUCCESS(vos_status)) {
+				vos_mem_free(msg);
+				status = eHAL_STATUS_FAILURE;
+			}
+		}
+		sme_ReleaseGlobalLock(&mac->sme);
+	}
+	return status;
+}
+#endif
+
 eHalStatus sme_send_mgmt_tx(tHalHandle hal, uint8_t session_id,
                             const uint8_t *buf, uint32_t len)
 {
@@ -15647,18 +15681,13 @@ eHalStatus sme_update_olpc_mode(tHalHandle hHal, bool enable)
 #ifdef FEATURE_WLAN_SW_PTA
 eHalStatus sme_sw_pta_req(tHalHandle hal,
 			  void (*resp_callback)(uint8_t resp_status),
-			  uint8_t session_id, enum sir_sw_pta_param_type type,
-			  uint8_t length, uint8_t *value)
+			  uint8_t session_id, bool bt_enabled, bool bt_adv,
+			  bool ble_enabled, bool bt_a2dp, bool bt_sco)
 {
 	tpAniSirGlobal mac = PMAC_STRUCT(hal);
 	struct sir_sw_pta_req *sw_pta_req;
 	eHalStatus status;
 	tSmeCmd *sme_cmd;
-
-	if (length > SW_PTA_COEX_PARAMS_MAX_LEN) {
-		smsLog(mac, LOGE, FL("Invalid length"));
-		return eHAL_STATUS_FAILURE;
-	}
 
 	sme_cmd = csrGetCommandBuffer(mac);
 	if (!sme_cmd) {
@@ -15673,9 +15702,11 @@ eHalStatus sme_sw_pta_req(tHalHandle hal,
 		return eHAL_STATUS_RESOURCES;
 	}
 
-	sw_pta_req->param_type = type;
-	sw_pta_req->length = length;
-	memcpy(sw_pta_req->value, value, length);
+	sw_pta_req->bt_enabled = bt_enabled;
+	sw_pta_req->bt_adv = bt_adv;
+	sw_pta_req->ble_enabled = ble_enabled;
+	sw_pta_req->bt_a2dp = bt_a2dp;
+	sw_pta_req->bt_sco = bt_sco;
 
 	status = sme_AcquireGlobalLock(&mac->sme);
 	if (HAL_STATUS_SUCCESS(status)) {
@@ -15704,13 +15735,5 @@ eHalStatus sme_sw_pta_req(tHalHandle hal,
 
 	sme_ReleaseGlobalLock(&mac->sme);
 	return eHAL_STATUS_SUCCESS;
-}
-
-eHalStatus sme_sco_req(tHalHandle hal,
-		       void (*resp_callback)(uint8_t resp_status),
-		       uint8_t session_id, uint8_t req_status)
-{
-	return sme_sw_pta_req(hal, resp_callback, session_id,
-			      SCO_STATUS, sizeof(req_status), &req_status);
 }
 #endif /* FEATURE_WLAN_SW_PTA */

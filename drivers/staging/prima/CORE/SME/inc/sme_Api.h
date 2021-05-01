@@ -4125,6 +4125,17 @@ VOS_STATUS sme_process_msg_callback(tHalHandle hal, vos_msg_t *msg);
 eHalStatus sme_send_mgmt_tx(tHalHandle hal, uint8_t session_id,
                                 const uint8_t *buf, uint32_t len);
 
+#ifdef FEATURE_WLAN_SW_PTA
+/**
+ * sme_teardown_link_with_ap() - indicates teardown link with AP
+ * @mac: mac context
+ * @session_id: session id
+ *
+ * Return: eHalStatus
+ */
+eHalStatus sme_teardown_link_with_ap(tpAniSirGlobal mac, uint8_t session_id);
+#endif
+
 #ifdef WLAN_FEATURE_SAE
 /**
  * sme_handle_sae_msg() - Sends SAE message received from supplicant
@@ -4181,28 +4192,17 @@ eHalStatus sme_update_olpc_mode(tHalHandle hHal, bool enable);
  * @hal: The handle returned by mac_open
  * @resp_callback: callback to indicate sw pta response to hdd
  * @session_id: session id
- * @type: sw pta coex param type
- * @length: length of sw pta coex param value
- * @value: sw pta coex params value
+ * @bt_enabled: BT status
+ * @bt_adv: BT advertisement status
+ * @ble_enabled: BLE status
+ * @bt_a2dp: BT A2DP status
+ * @bt_sco: BT SCO status
  *
  * Return: HAL_STATUS
  */
 eHalStatus sme_sw_pta_req(tHalHandle hal,
 			  void (*resp_callback)(uint8_t resp_status),
-			  uint8_t session_id, enum sir_sw_pta_param_type type,
-			  uint8_t length, uint8_t *value);
-
-/**
- * sme_sco_req() - Send sco request status to sme
- * @hal: The handle returned by mac_open
- * @resp_callback: callback to indicate sco response to hdd
- * @session_id: session id
- * @req_status: sco request status
- *
- * Return: HAL_STATUS
- */
-eHalStatus sme_sco_req(tHalHandle hal,
-		       void (*resp_callback)(uint8_t resp_status),
-		       uint8_t session_id, uint8_t req_status);
+			  uint8_t session_id, bool bt_enabled, bool bt_adv,
+			  bool ble_enabled, bool bt_a2dp, bool bt_sco);
 #endif /* FEATURE_WLAN_SW_PTA */
 #endif //#if !defined( __SME_API_H )

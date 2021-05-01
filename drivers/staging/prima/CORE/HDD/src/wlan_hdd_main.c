@@ -214,9 +214,6 @@ static VOS_STATUS hdd_parse_ese_beacon_req(tANI_U8 *pValue,
 //wait time for beacon miss rate.
 #define BCN_MISS_RATE_TIME 500
 
-//max size for BT profile indication cmd
-#define MAX_USER_COMMAND_SIZE_BT_PROFILE_IND_CMD 24
-
 /*
  * Android DRIVER command structures
  */
@@ -229,6 +226,11 @@ static vos_wake_lock_t wlan_wake_lock;
 
 /* set when SSR is needed after unload */
 static e_hdd_ssr_required isSsrRequired = HDD_SSR_NOT_REQUIRED;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+#define WLAN_NV_FILE_SIZE 64
+static char wlan_nv_bin[WLAN_NV_FILE_SIZE];
+#endif
 
 //internal function declaration
 static VOS_STATUS wlan_hdd_framework_restart(hdd_context_t *pHddCtx);
@@ -250,19 +252,6 @@ static int hdd_ParseIBSSTXFailEventParams(tANI_U8 *pValue,
 static int hdd_ParseUserParams(tANI_U8 *pValue, tANI_U8 **ppArg);
 
 #endif /* WLAN_FEATURE_RMC */
-
-#ifdef FEATURE_WLAN_SW_PTA
-/* BT profile sysfile entry obj */
-static struct kobject *driver_kobject;
-static ssize_t hdd_sysfs_bt_profile_ind_cmd_store(struct kobject *kobj,
-                                                  struct kobj_attribute *attr,
-                                                  const char *buf,
-                                                  size_t count);
-static struct kobj_attribute bt_profile_attribute =
-    __ATTR(bt_profile, 0220, NULL,
-           hdd_sysfs_bt_profile_ind_cmd_store);
-#endif
-
 void wlan_hdd_restart_timer_cb(v_PVOID_t usrDataForCallback);
 void hdd_set_wlan_suspend_mode(bool suspend);
 void hdd_set_vowifi_mode(hdd_context_t *hdd_ctx, bool enable);
@@ -3909,130 +3898,153 @@ int hdd_get_disable_ch_list(hdd_context_t *hdd_ctx, tANI_U8 *buf,
 }
 
 #ifdef FEATURE_WLAN_SW_PTA
-static void hdd_sysfs_bt_profile_create(hdd_context_t* hdd_ctx)
+static void hdd_sw_pta_resp_callback(uint8_t sw_pta_status)
 {
-	if(!hdd_ctx->cfg_ini->is_sw_pta_enabled)
-		return;
+	hdd_context_t *hdd_ctx = NULL;
+	v_CONTEXT_t vos_ctx = NULL;
 
-	driver_kobject = kobject_create_and_add(WLAN_MODULE_NAME, kernel_kobj);
-	if (!driver_kobject) {
-		hddLog(VOS_TRACE_LEVEL_ERROR,
-		       "%s:could not allocate driver kobject",
-		       __func__);
+	vos_ctx = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+	if (!vos_ctx) {
+		hddLog(VOS_TRACE_LEVEL_FATAL,
+		       "%s: Global VOS context is Null", __func__);
 		return;
 	}
 
-	if(sysfs_create_file(driver_kobject, &bt_profile_attribute.attr))
-		hddLog(VOS_TRACE_LEVEL_ERROR,
-		       "%s:Failed to create BT profile sysfs entry", __func__);
-}
-
-static void hdd_sysfs_bt_profile_destroy(hdd_context_t* hdd_ctx)
-{
-	if(!hdd_ctx->cfg_ini->is_sw_pta_enabled)
+	/* Get the HDD context. */
+	hdd_ctx = (hdd_context_t*)vos_get_context(VOS_MODULE_ID_HDD, vos_ctx);
+	if (!hdd_ctx) {
+		hddLog(VOS_TRACE_LEVEL_FATAL,
+		       "%s: HDD context is Null", __func__);
 		return;
-
-	sysfs_remove_file(driver_kobject, &bt_profile_attribute.attr);
-	if (driver_kobject) {
-		kobject_put(driver_kobject);
-		driver_kobject = NULL;
 	}
+
+	hddLog(VOS_TRACE_LEVEL_DEBUG, "%s: sw pta response status %d",
+	       __func__, sw_pta_status);
+
+	if (sw_pta_status) {
+		hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Invalid sw pta status %d",
+		       __func__, sw_pta_status);
+		return;
+	}
+
+	complete(&hdd_ctx->sw_pta_comp);
 }
 
-static int hdd_sysfs_validate_and_copy_buf(char *dest_buf, size_t dest_buf_size,
-					   char const *source_buf,
-					   size_t source_buf_size)
+int hdd_process_bt_sco_profile(hdd_context_t *hdd_ctx,
+			       bool bt_enabled, bool bt_adv,
+			       bool ble_enabled, bool bt_a2dp,
+			       bool bt_sco)
 {
-	if (source_buf_size > (dest_buf_size - 1)) {
-		hddLog(VOS_TRACE_LEVEL_ERROR,
-		       "%s:Command length is larger than %zu bytes",
-			   __func__, dest_buf_size);
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hdd_ctx->hHal);
+	hdd_station_ctx_t *hdd_sta_ctx;
+	eConnectionState conn_state;
+	hdd_adapter_t *adapter;
+	eHalStatus hal_status;
+	int rc;
+
+	if (!mac_ctx) {
+		hddLog(VOS_TRACE_LEVEL_ERROR, "%s: mac_ctx got NULL", __func__);
 		return -EINVAL;
 	}
 
-	/* sysfs already provides kernel space buffer so copy from user
-	 * is not needed. Doing this extra copy operation just to ensure
-	 * the local buf is properly null-terminated.
-	 */
-	strlcpy(dest_buf, source_buf, dest_buf_size);
+	INIT_COMPLETION(hdd_ctx->sw_pta_comp);
 
-	/* default 'echo' cmd takes new line character to here */
-	if (dest_buf[source_buf_size - 1] == '\n')
-		dest_buf[source_buf_size - 1] = '\0';
+	hal_status = sme_sw_pta_req(hdd_ctx->hHal, hdd_sw_pta_resp_callback,
+				    adapter->sessionId, bt_enabled,
+				    bt_adv, ble_enabled, bt_a2dp, bt_sco);
+	if (!HAL_STATUS_SUCCESS(hal_status)) {
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       "%s: Error sending sme sco indication request",
+		       __func__);
+		return -EINVAL;
+	}
+
+	rc = wait_for_completion_timeout(&hdd_ctx->sw_pta_comp,
+			msecs_to_jiffies(WLAN_WAIT_TIME_SW_PTA));
+	if (!rc) {
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       FL("Target response timed out for sw_pta_comp"));
+		return -EINVAL;
+	}
+
+	if (bt_sco) {
+		if (hdd_ctx->is_sco_enabled) {
+			hddLog(VOS_TRACE_LEVEL_ERROR,
+			       "%s: BT SCO is already enabled", __func__);
+			return 0;
+		}
+	} else {
+		if (!hdd_ctx->is_sco_enabled) {
+			hddLog(VOS_TRACE_LEVEL_ERROR,
+			       "%s: BT SCO is already disabled", __func__);
+			return 0;
+		}
+		hdd_ctx->is_sco_enabled = false;
+		mac_ctx->isCoexScoIndSet = 0;
+		return 0;
+	}
+
+	adapter = hdd_get_adapter(hdd_ctx, WLAN_HDD_INFRA_STATION);
+	if (!adapter) {
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       "%s: No station adapter to enable bt sco", __func__);
+		return -EINVAL;
+	}
+
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	if (!hdd_sta_ctx) {
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       "%s: No station context to enable bt sco", __func__);
+		return -EINVAL;
+	}
+
+	if (wlan_hdd_scan_abort(adapter)) {
+		hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Error aborting scan request",
+		       __func__);
+		return -EINVAL;
+	}
+
+	hdd_ctx->is_sco_enabled = true;
+	mac_ctx->isCoexScoIndSet = 1;
+
+	conn_state = hdd_sta_ctx->conn_info.connState;
+	if (eConnectionState_Connecting == conn_state ||
+	    smeNeighborMiddleOfRoaming(hdd_sta_ctx) ||
+	    (eConnectionState_Associated == conn_state &&
+	      sme_is_sta_key_exchange_in_progress(hdd_ctx->hHal,
+						  adapter->sessionId)))
+		sme_abortConnection(hdd_ctx->hHal,
+				    adapter->sessionId);
+
+	if (hdd_connIsConnected(hdd_sta_ctx)) {
+		hal_status = sme_teardown_link_with_ap(mac_ctx,
+						       adapter->sessionId);
+		if (!HAL_STATUS_SUCCESS(hal_status)) {
+			hddLog(VOS_TRACE_LEVEL_ERROR,
+			       "%s: Error while Teardown link wih AP",
+			       __func__);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
 
-static ssize_t __hdd_sysfs_bt_profile_ind_cmd_store(hdd_context_t *hdd_ctx,
-						    const char *buf,
-						    size_t count)
+static void hdd_init_sw_pta(hdd_context_t *hdd_ctx)
 {
-	char buf_local[MAX_USER_COMMAND_SIZE_BT_PROFILE_IND_CMD + 1];
-	char *sptr, *token, *profile, *profile_mode;
-	int ret;
-
-	ENTER();
-
-	if (wlan_hdd_validate_context(hdd_ctx))
-		return -EINVAL;
-
-	ret = hdd_sysfs_validate_and_copy_buf(buf_local, sizeof(buf_local),
-					      buf, count);
-	if (ret)
-		return -EINVAL;
-
-	sptr = buf_local;
-	/* Get BT profile */
-	token = strsep(&sptr, " ");
-
-	if (!token)
-		return -EINVAL;
-	profile = token;
-
-	token = NULL;
-	/* Get BT profile mode */
-	token = strsep(&sptr, " ");
-
-	if (!token)
-		return -EINVAL;
-
-	profile_mode = token;
-
-	hddLog(VOS_TRACE_LEVEL_INFO, "%s:profile = %s, profile_mode = %s",
-	       __func__, profile, profile_mode);
-
-	EXIT();
-	return count;
+	init_completion(&hdd_ctx->sw_pta_comp);
+	wcnss_update_bt_profile();
 }
 
-static ssize_t hdd_sysfs_bt_profile_ind_cmd_store(struct kobject *kobj,
-						  struct kobj_attribute *attr,
-						  const char *buf,
-						  size_t count)
+static void hdd_deinit_sw_pta(hdd_context_t *hdd_ctx)
 {
-	hdd_context_t *pHddCtx = NULL;
-	ssize_t err_size = 0;
-
-	pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD,
-			vos_get_global_context(VOS_MODULE_ID_HDD, NULL));
-
-	if (!pHddCtx) {
-		hddLog(VOS_TRACE_LEVEL_FATAL, "HDD Context is NULL");
-		return -EINVAL;
-	}
-
-	err_size = __hdd_sysfs_bt_profile_ind_cmd_store(pHddCtx, buf, count);
-
-	return err_size;
+	complete(&hdd_ctx->sw_pta_comp);
 }
 #else
-static inline
-void hdd_sysfs_bt_profile_create(hdd_context_t* pHddCtx)
+static void hdd_init_sw_pta(hdd_context_t *hdd_ctx)
 {
 }
-
-static inline
-void hdd_sysfs_bt_profile_destroy(hdd_context_t* pHddCtx)
+static void hdd_deinit_sw_pta(hdd_context_t *hdd_ctx)
 {
 }
 #endif
@@ -8277,8 +8289,6 @@ int __hdd_open(struct net_device *dev)
 		  "%s: session already exist for station mode", __func__);
    }
 
-   hdd_sysfs_bt_profile_create(pHddCtx);
-
    set_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags);
    if (hdd_connIsConnected(WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))) 
    {
@@ -8455,8 +8465,6 @@ int __hdd_stop (struct net_device *dev)
         */
        wlan_hdd_stop_mon(pHddCtx, true);
    }
-
-   hdd_sysfs_bt_profile_destroy(pHddCtx);
 
    hddLog(VOS_TRACE_LEVEL_INFO, "%s: Disabling OS Tx queues", __func__);
 
@@ -8691,6 +8699,19 @@ VOS_STATUS hdd_release_firmware(char *pFileName,v_VOID_t *pCtx)
    EXIT();
    return status;
 }
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+char* hdd_get_nv_bin()
+{
+	if (wcnss_get_nv_name(wlan_nv_bin)) {
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       "%s: NV binary is invalid", __func__);
+		return NULL;
+	}
+
+	return wlan_nv_bin;
+}
+#endif
 
 /**---------------------------------------------------------------------------
 
@@ -12641,6 +12662,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
       wlan_hdd_ftm_close(pHddCtx);
       goto free_hdd_ctx;
    }
+   hdd_deinit_sw_pta(pHddCtx);
 
    /* DeRegister with platform driver as client for Suspend/Resume */
    vosStatus = hddDeregisterPmOps(pHddCtx);
@@ -14762,6 +14784,8 @@ int hdd_wlan_startup(struct device *dev )
    hdd_assoc_registerFwdEapolCB(pVosContext);
 
    mutex_init(&pHddCtx->cache_channel_lock);
+
+   hdd_init_sw_pta(pHddCtx);
    goto success;
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
