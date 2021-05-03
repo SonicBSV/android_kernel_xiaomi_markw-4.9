@@ -53,7 +53,7 @@ static DEFINE_MUTEX(i2c_rw_access);
 /*****************************************************************************
  * Global variable or extern global variabls/functions
  *****************************************************************************/
-
+extern bool is_atmel_ts;
 /*****************************************************************************
  * Static function prototypes
  *****************************************************************************/
@@ -93,8 +93,10 @@ int fts_i2c_read(struct i2c_client *client, char *writebuf,
 				},
 			};
 			ret = i2c_transfer(client->adapter, msgs, 2);
-			if (ret < 0)
+			if (ret < 0) {
 				FTS_ERROR("[IIC]: i2c_write error %d!!", ret);
+				is_atmel_ts = true;
+			}
 		} else {
 			struct i2c_msg msgs[] = {
 				{
@@ -105,8 +107,10 @@ int fts_i2c_read(struct i2c_client *client, char *writebuf,
 				},
 			};
 			ret = i2c_transfer(client->adapter, msgs, 1);
-			if (ret < 0)
+			if (ret < 0) {
 				FTS_ERROR("[IIC]: i2c_read error %d!!", ret);
+				is_atmel_ts = true;
+			}
 		}
 	}
 
@@ -138,8 +142,10 @@ int fts_i2c_write(struct i2c_client *client, char *writebuf, int writelen)
 			},
 		};
 		ret = i2c_transfer(client->adapter, msgs, 1);
-		if (ret < 0)
+		if (ret < 0) {
 			FTS_ERROR("[IIC]: i2c_write error, ret=%d", ret);
+			is_atmel_ts = true;
+		}
 	}
 
 	mutex_unlock(&i2c_rw_access);

@@ -62,6 +62,8 @@ struct i2c_client *fts_i2c_client;
 struct fts_ts_data *fts_wq_data;
 struct input_dev *fts_input_dev;
 extern bool xiaomi_ts_probed;
+extern bool is_atmel_ts;
+bool is_atmel_ts = false;
 
 #if FTS_DEBUG_EN
 int g_show_log = 1;
@@ -1142,7 +1144,11 @@ static int fts_ts_probe(struct i2c_client *client,
 #endif
 
 	fts_ctpm_get_upgrade_array();
-
+	
+	if (is_atmel_ts) {
+		return -ENODEV;
+	}
+	
 	err = fts_gpio_configure(data);
 	if (err < 0) {
 		FTS_ERROR("[GPIO]Failed to configure the gpios");
