@@ -673,7 +673,7 @@ dtb-$(CONFIG_ARCH_SDM429) += sdm429-mtp.dtb \
 endif
 
 dtb-$(CONFIG_ARCH_SDM845_VM) += sdm845-vm.dtb
-dtb-$(CONFIG_MACH_XIAOMI_MARKW) := msm8953-qrd-markw.dtb
+dtb-$(CONFIG_MACH_XIAOMI_MARKW) := msm8953-qrd-sku3-markw.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)

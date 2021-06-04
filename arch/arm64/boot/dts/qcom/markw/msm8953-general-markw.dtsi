@@ -84,10 +84,6 @@
 &pmi8950_torch1 {
 	qcom,current = <100>;
 };
-			
-&usb3 {
-    vbus_dwc3-supply = <&smbcharger_charger_otg>;
-};
 
 &pm8953_l6 {
 	regulator-always-on;
