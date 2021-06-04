@@ -16,17 +16,9 @@
 #include "panels/dsi-panel-r63350-tianma-1080p-video.dtsi"
 
 &mdss_dsi0 {
-        lab-supply = <&lab_regulator>;
-        ibb-supply = <&ibb_regulator>;
-/*        /delete-property/ vdd-supply; */
         qcom,dsi-pref-prim-pan = <&dsi_nt35521s_ebbg_720_video>;
         qcom,dsi-pref-sub-pan = <&dsi_nt35596_1080_vid>;
         qcom,dsi-pref-sub1-pan = <&dsi_r63350_1080p_video>;
-        pinctrl-names = "mdss_default", "mdss_sleep";
-        pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
-        pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
-        qcom,platform-te-gpio = <&tlmm 24 0>;
-        qcom,platform-reset-gpio = <&tlmm 61 0>;
 };
 
 &dsi_nt35521s_ebbg_720_video {
