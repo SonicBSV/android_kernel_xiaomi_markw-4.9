@@ -61,9 +61,6 @@
 struct i2c_client *fts_i2c_client;
 struct fts_ts_data *fts_wq_data;
 struct input_dev *fts_input_dev;
-extern bool xiaomi_ts_probed;
-extern bool is_atmel_ts;
-bool is_atmel_ts = false;
 
 #if FTS_DEBUG_EN
 int g_show_log = 1;
@@ -1076,9 +1073,6 @@ static int fts_ts_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int err;
 
-	if (xiaomi_ts_probed)
-		return -ENODEV;
-
 	FTS_FUNC_ENTER();
 	/* 1. Get Platform data */
 	if (client->dev.of_node) {
@@ -1144,11 +1138,7 @@ static int fts_ts_probe(struct i2c_client *client,
 #endif
 
 	fts_ctpm_get_upgrade_array();
-	
-	if (is_atmel_ts) {
-		return -ENODEV;
-	}
-	
+
 	err = fts_gpio_configure(data);
 	if (err < 0) {
 		FTS_ERROR("[GPIO]Failed to configure the gpios");
@@ -1221,7 +1211,7 @@ static int fts_ts_probe(struct i2c_client *client,
 	data->early_suspend.resume = fts_ts_late_resume;
 	register_early_suspend(&data->early_suspend);
 #endif
-	xiaomi_ts_probed = true;
+
 	FTS_FUNC_EXIT();
 	return 0;
 
@@ -1293,7 +1283,7 @@ static int fts_ts_remove(struct i2c_client *client)
 #if FTS_ESDCHECK_EN
 	fts_esdcheck_exit();
 #endif
-	xiaomi_ts_probed = false;
+
 	FTS_FUNC_EXIT();
 	return 0;
 }
