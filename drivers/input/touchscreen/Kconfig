@@ -1454,4 +1454,6 @@ config TOUCHSCREEN_RAYDIUM_CHIPSET
 
 source "drivers/input/touchscreen/Atmel308U/Kconfig"
 
+source "drivers/input/touchscreen/FT5346/Kconfig"
+
 endif
