@@ -33,7 +33,6 @@
 #include <linux/fb.h>
 #endif
 
-extern bool xiaomi_ts_probed;
 static u8 TP_Maker, LCD_Maker, Panel_Ink;
 static u8 Fw_Version[3];
 u8 Panel_ID;
@@ -809,7 +808,7 @@ static u8 lockdown_info[MXT_LOCKDOWN_SIZE];
 #define CTP_PARENT_PROC_NAME  "touchscreen"
 #define CTP_LOCKDOWN_INFOR_NAME   "lockdown_info"
 #define CTP_OPEN_PROC_NAME        "ctp_openshort_test"
-u8 tp_color;
+extern  u8 tp_color;
 struct mxt_data *cmcs_data;
 static ssize_t ctp_lockdown_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos);
 static ssize_t ctp_lockdown_proc_write(struct file *filp, const char __user *userbuf, size_t count, loff_t *ppos);
@@ -1961,7 +1960,7 @@ static irqreturn_t mxt_read_messages_t44(struct mxt_data *data)
 	count = data->msg_buf[0];
 
 	if (count == 0) {
-		dev_warn(dev, "Interrupt triggered but zero messages\n");
+		dev_dbg(dev, "Interrupt triggered but zero messages\n");
 		return IRQ_NONE;
 	} else if (count > data->max_reportid) {
 		dev_err(dev, "T44 count exceeded max report id\n");
@@ -2643,6 +2642,7 @@ static int mxt_check_reg_init(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
 	int ret;
+	u8 tp_color;
 	u32 k = 0;
 
 	bool is_recheck = false, use_default_cfg = false;
@@ -5345,9 +5345,11 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 
 	if (data->pdata->input_name) {
 		input_dev->name = data->pdata->input_name;
+		dev_dbg(dev, "MXT name: %s", input_dev->name);
 	} else {
 		input_dev->name = "atmel-maxtouch";
 	}
+	dev_dbg(dev, "MXT name: %s", input_dev->name);
 
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = dev;
@@ -5479,7 +5481,9 @@ static int fb_notifier_cb(struct notifier_block *self,
 
 	if (evdata && evdata->data && event == FB_EVENT_BLANK && mxt_data) {
 		blank = evdata->data;
-		if (*blank == FB_BLANK_UNBLANK) {
+		if (*blank == FB_BLANK_UNBLANK
+                || *blank == FB_BLANK_NORMAL
+                || *blank == FB_BLANK_VSYNC_SUSPEND) {
 			dev_dbg(&mxt_data->client->dev, "##### UNBLANK SCREEN #####\n");
 			mxt_input_enable(mxt_data->input_dev);
 #ifdef TOUCH_WAKEUP_EVENT_RECORD
@@ -5922,6 +5926,39 @@ static void create_ctp_proc(void)
 }
 #endif
 
+static int mxt_proc_init(struct kernfs_node *sysfs_node_parent)
+{
+	int ret = 0;
+	char *buf, *path = NULL;
+	char *double_tap_sysfs_node;
+	struct proc_dir_entry *proc_entry_tp = NULL;
+	struct proc_dir_entry *proc_symlink_tmp = NULL;
+	buf = kzalloc(PATH_MAX, GFP_KERNEL);
+	if (buf)
+	       kernfs_path(sysfs_node_parent, buf, PATH_MAX);
+	proc_entry_tp = proc_mkdir("gesture", NULL);
+	if (proc_entry_tp == NULL) {
+	       pr_err("%s: Couldn't create gesture dir in procfs\n", __func__);
+	       ret = -ENOMEM;
+	}
+
+	double_tap_sysfs_node = kzalloc(PATH_MAX, GFP_KERNEL);
+	if (double_tap_sysfs_node)
+	       sprintf(double_tap_sysfs_node, "/sys%s/%s", path, "wakeup_mode");
+	proc_symlink_tmp = proc_symlink("onoff",
+	       proc_entry_tp, double_tap_sysfs_node);
+	if (proc_symlink_tmp == NULL) {
+	       ret = -ENOMEM;
+	       pr_err("%s: Couldn't create double_tap_enable symlink\n", __func__);
+	}
+
+	kfree(buf);
+	kfree(double_tap_sysfs_node);
+	return ret;
+}
+
+
+
 static int mxt_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -5929,10 +5966,7 @@ static int mxt_probe(struct i2c_client *client,
 	struct mxt_data *data;
 	int error;
 	unsigned char val;
-	
-	if (xiaomi_ts_probed)
-		return -ENODEV;
-	
+
 	CTP_DEBUG("step 1: parse dts. ");
 	if (client->dev.of_node) {
 		pdata = devm_kzalloc(&client->dev,
@@ -6113,7 +6147,7 @@ static int mxt_probe(struct i2c_client *client,
 #if CTP_PROC_INTERFACE
 	create_ctp_proc();
 #endif
-	xiaomi_ts_probed = true;
+	mxt_proc_init(client->dev.kobj.sd);
 	CTP_DEBUG("Atmel Probe done");
 	return 0;
 
@@ -6180,8 +6214,6 @@ static int mxt_remove(struct i2c_client *client)
 		gpio_free(pdata->reset_gpio);
 	kfree(data);
 	data = NULL;
-	
-	xiaomi_ts_probed = false;
 
 	return 0;
 }
