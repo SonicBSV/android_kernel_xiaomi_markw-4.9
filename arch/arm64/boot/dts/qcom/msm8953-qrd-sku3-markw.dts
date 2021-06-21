@@ -26,11 +26,11 @@
 };
 
 &dsi_r69006_1080p_cmd {
-	/delete-property/ qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	/delete-property/ qcom,panel-supply-entries;
 };
 
 &dsi_r69006_1080p_video {
-	/delete-property/ qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	/delete-property/ qcom,panel-supply-entries;
 };
 
 #include "markw/msm8953-markw.dtsi"
