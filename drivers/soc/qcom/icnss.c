@@ -64,8 +64,10 @@ module_param(qmi_timeout, ulong, 0600);
 #define WLFW_SERVICE_INS_ID_V01		0
 #define WLFW_CLIENT_ID			0x4b4e454c
 #define MAX_PROP_SIZE			32
+#ifdef CONFIG_IPC_LOGGING
 #define NUM_LOG_PAGES			10
 #define NUM_LOG_LONG_PAGES		4
+#endif
 #define ICNSS_MAGIC			0x5abc5abc
 
 #define ICNSS_SERVICE_LOCATION_CLIENT_NAME			"ICNSS-WLAN"
@@ -5230,6 +5232,7 @@ static struct platform_driver icnss_driver = {
 
 static int __init icnss_initialize(void)
 {
+#ifdef CONFIG_IPC_LOGGING
 	icnss_ipc_log_context = ipc_log_context_create(NUM_LOG_PAGES,
 						       "icnss", 0);
 	if (!icnss_ipc_log_context)
@@ -5239,6 +5242,7 @@ static int __init icnss_initialize(void)
 						       "icnss_long", 0);
 	if (!icnss_ipc_log_long_context)
 		icnss_pr_err("Unable to create log long context\n");
+#endif
 
 	return platform_driver_register(&icnss_driver);
 }
