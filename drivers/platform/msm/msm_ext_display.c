@@ -249,7 +249,7 @@ static int msm_ext_disp_update_audio_ops(struct msm_ext_disp *ext_disp,
 
 	ret = msm_ext_disp_get_intf_data(ext_disp, type, &data);
 	if (ret || !data) {
-		pr_err("interface %s not found\n", msm_ext_disp_name(type));
+		pr_debug("interface %s not found\n", msm_ext_disp_name(type));
 		goto end;
 	}
 
