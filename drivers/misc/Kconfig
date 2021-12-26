@@ -4,6 +4,12 @@
 
 menu "Misc devices"
 
+config AW8736
+	tristate "support AWINIC 8736 on markw"
+	depends on I2C
+	help
+	  Say Y here if you have a markw power amplifier.
+
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
