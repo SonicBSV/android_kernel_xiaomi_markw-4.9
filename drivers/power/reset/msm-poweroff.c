@@ -279,6 +279,19 @@ static void halt_spmi_pmic_arbiter(void)
 	}
 }
 
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+static bool device_locked_flag;
+static int __init device_locked(char *str)
+{
+	if (strcmp(str, "1"))
+		device_locked_flag = false;
+	else
+		device_locked_flag = true;
+	return 1;
+}
+__setup("device_locked=", device_locked);
+#endif
+
 static void msm_restart_prepare(const char *cmd)
 {
 	bool need_warm_reset = false;
@@ -337,6 +350,10 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_KEYS_CLEAR);
 			__raw_writel(0x7766550a, restart_reason);
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+		} else if (!strncmp(cmd, "fastmmi", 7)) {
+			__raw_writel(0x77665505, restart_reason);
+#endif
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			unsigned long reset_reason;
@@ -362,7 +379,11 @@ static void msm_restart_prepare(const char *cmd)
 				__raw_writel(0x6f656d00 | (code & 0xff),
 					     restart_reason);
 			}
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+		} else if (!strncmp(cmd, "edl", 3) && !device_locked_flag) {
+#else
 		} else if (!strncmp(cmd, "edl", 3)) {
+#endif
 			enable_emergency_dload_mode();
 		} else {
 			__raw_writel(0x77665501, restart_reason);
