@@ -1434,6 +1434,12 @@ config TOUCHSCREEN_HIMAX_CHIPSET
 
 source "drivers/input/touchscreen/hxchipset/Kconfig"
 
+config TOUCHSCREEN_ATMEL308U
+	bool "ATMEL touchpanel 308U series"
+	depends on I2C
+
+source "drivers/input/touchscreen/Atmel308U/Kconfig"
+
 config TOUCHSCREEN_EKTF3XXX_CHIPSET
 	bool "Elan EKTF3XXX touchpanel CHIPSET"
 	depends on I2C
@@ -1451,7 +1457,5 @@ config TOUCHSCREEN_RAYDIUM_CHIPSET
 	  Say Y here if you have a Raydium WT030 CHIPSET touchscreen.
 
 	  If unsure, say N.
-
-source "drivers/input/touchscreen/Atmel308U/Kconfig"
 
 endif
