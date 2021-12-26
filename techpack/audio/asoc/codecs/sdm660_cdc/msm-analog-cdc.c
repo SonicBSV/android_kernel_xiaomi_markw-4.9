@@ -58,7 +58,11 @@
 #define SPK_PMD 2
 #define SPK_PMU 3
 
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+#define MICBIAS_DEFAULT_VAL 2700000
+#else
 #define MICBIAS_DEFAULT_VAL 1800000
+#endif
 #define MICBIAS_MIN_VAL 1600000
 #define MICBIAS_STEP_SIZE 50000
 
@@ -562,9 +566,15 @@ static void msm_anlg_cdc_mbhc_internal_micbias_ctrl(struct snd_soc_codec *codec,
 {
 	if (micbias_num == 1) {
 		if (enable)
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+			snd_soc_update_bits(codec,
+				MSM89XX_PMIC_ANALOG_MICB_1_INT_RBIAS,
+				0x18, 0x18);
+#else
 			snd_soc_update_bits(codec,
 				MSM89XX_PMIC_ANALOG_MICB_1_INT_RBIAS,
 				0x10, 0x10);
+#endif
 		else
 			snd_soc_update_bits(codec,
 				MSM89XX_PMIC_ANALOG_MICB_1_INT_RBIAS,

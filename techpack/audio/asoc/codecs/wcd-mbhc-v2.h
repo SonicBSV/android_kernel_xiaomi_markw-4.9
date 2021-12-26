@@ -607,3 +607,5 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 			enum snd_jack_types jack_type);
 
 #endif /* __WCD_MBHC_V2_H__ */
+extern void msm8x16_wcd_codec_set_headset_state(u32 state);
+extern int msm8x16_wcd_codec_get_headset_state(void);

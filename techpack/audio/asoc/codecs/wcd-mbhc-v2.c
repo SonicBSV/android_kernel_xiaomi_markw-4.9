@@ -307,7 +307,11 @@ out_micb_en:
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_PULLUP);
 		else
 			/* enable current source and disable mb, pullup*/
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+#else
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#endif
 
 		/* configure cap settings properly when micbias is disabled */
 		if (mbhc->mbhc_cb->set_cap_mode)
@@ -327,7 +331,11 @@ out_micb_en:
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 		else
 			/* Disable micbias, pullup & enable cs */
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+#else
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#endif
 		mutex_unlock(&mbhc->hphl_pa_lock);
 		clear_bit(WCD_MBHC_ANC0_OFF_ACK, &mbhc->hph_anc_state);
 		break;
@@ -345,7 +353,11 @@ out_micb_en:
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 		else
 			/* Disable micbias, pullup & enable cs */
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+#else
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#endif
 		mutex_unlock(&mbhc->hphr_pa_lock);
 		clear_bit(WCD_MBHC_ANC1_OFF_ACK, &mbhc->hph_anc_state);
 		break;
@@ -1891,6 +1903,9 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 		mbhc->moist_rref = hph_moist_config[2];
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+	hph_swh = 1;
+#endif
 	mbhc->in_swch_irq_handler = false;
 	mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
 	mbhc->is_btn_press = false;
