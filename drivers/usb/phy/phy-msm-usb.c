@@ -266,7 +266,7 @@ MODULE_PARM_DESC(floated_charger_enable,
 	"Whether to enable floated charger");
 
 /* by default debugging is enabled */
-static unsigned int enable_dbg_log = 1;
+static unsigned int enable_dbg_log = 0;
 module_param(enable_dbg_log, uint, 0644);
 MODULE_PARM_DESC(enable_dbg_log, "Debug buffer events");
 
