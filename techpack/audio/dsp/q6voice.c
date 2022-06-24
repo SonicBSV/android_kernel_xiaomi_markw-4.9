@@ -8874,6 +8874,7 @@ int voice_set_topology_specific_info(struct voice_data *v,
 	}
 
 	if (topology_idx == CVP_VOC_RX_TOPOLOGY_CAL) {
+#ifdef TOPOLOGY_SPECIFIC_CHANNEL_INFO
 		topo_channels = ((struct audio_cal_info_voc_top *)
 				cal_block->cal_info)->num_channels;
 		if (topo_channels > 0) {
@@ -8884,7 +8885,9 @@ int voice_set_topology_specific_info(struct voice_data *v,
 			       &((struct audio_cal_info_voc_top *)
 			       cal_block->cal_info)->channel_mapping,
 			       VSS_CHANNEL_MAPPING_SIZE);
-		} else {
+		} else
+#endif
+		{
 			pr_debug("%s: cal data is zero, default to Rx backend config\n",
 				 __func__);
 			if (v->dev_rx.no_of_channels == NUM_CHANNELS_MONO) {
@@ -8899,6 +8902,7 @@ int voice_set_topology_specific_info(struct voice_data *v,
 			}
 		}
 	} else if (topology_idx == CVP_VOC_TX_TOPOLOGY_CAL) {
+#ifdef TOPOLOGY_SPECIFIC_CHANNEL_INFO
 		topo_channels = ((struct audio_cal_info_voc_top *)
 				cal_block->cal_info)->num_channels;
 		if (topo_channels > 0) {
@@ -8909,7 +8913,9 @@ int voice_set_topology_specific_info(struct voice_data *v,
 			       &((struct audio_cal_info_voc_top *)
 			       cal_block->cal_info)->channel_mapping,
 			       VSS_CHANNEL_MAPPING_SIZE);
-		} else {
+		} else
+#endif
+		{
 			pr_debug("%s: cal data is zero, default to Tx backend config\n",
 				 __func__);
 			if (v->dev_tx.no_of_channels == NUM_CHANNELS_MONO) {

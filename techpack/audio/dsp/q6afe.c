@@ -1291,7 +1291,7 @@ static void afe_send_cal_spkr_prot_rx(int port_id)
 			&afe_spk_config))
 			pr_err("%s: RX MODE_VI_PROC_CFG failed\n",
 				   __func__);
-
+#ifdef MSM_SPKR_PROT_SPV3
 		if (afe_spk_config.mode_rx_cfg.mode ==
 			Q6AFE_MSM_SPKR_PROCESSING) {
 			if (this_afe.prot_cfg.sp_version >=
@@ -1315,6 +1315,7 @@ static void afe_send_cal_spkr_prot_rx(int port_id)
 					this_afe.prot_cfg.sp_version);
 			}
 		}
+#endif
 	}
 	mutex_unlock(&this_afe.cal_data[AFE_FB_SPKR_PROT_CAL]->lock);
 done:
