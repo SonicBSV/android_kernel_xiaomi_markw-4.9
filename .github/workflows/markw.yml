@@ -1,0 +1,29 @@
+name: markw-main
+on:
+   pull_request:
+   workflow_dispatch:
+
+jobs:
+  prototypeuild:
+       runs-on: ubuntu-latest
+
+       steps:
+       - name: Creating env!
+         uses: actions/checkout@v2
+
+       - name: Setting up env!
+         run: |
+              sudo -E apt-get -qq update
+              sudo -E apt-get -qq install git make bc bison -y ccache \
+              openssl curl zip kmod cpio flex libelf-dev \
+              libssl-dev libtfm-dev wget device-tree-compiler \
+              ca-certificates python3 python2 binutils \
+              binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi
+       - name: Building Kernel...
+         run: |
+             chmod +x build.sh && bash build.sh
+             shell: bash
+             env:
+              CHATID: ${{ secrets.CHAT_ID }}
+              API_BOT: ${{ secrets.BOT_API }}
+
