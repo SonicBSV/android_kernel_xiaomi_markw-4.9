@@ -15,7 +15,6 @@
 
 #include "msm8953.dtsi"
 #include "pmi8950.dtsi"
-#include "msm8953-qrd-sku3.dtsi"
 #include "msm8953-pmi8950.dtsi"
 
 / {
@@ -25,13 +24,8 @@
 	qcom,board-id= <0x1000b 1>;
 };
 
-&dsi_r69006_1080p_cmd {
-	/delete-property/ qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-};
-
-&dsi_r69006_1080p_video {
-	/delete-property/ qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-};
+#include "msm8953-qrd-sku3.dtsi"
+#include "msm8953-mdss-panels.dtsi"
+#include "msm8953-camera-sensor-qrd.dtsi"
 
 #include "markw/msm8953-markw.dtsi"
-

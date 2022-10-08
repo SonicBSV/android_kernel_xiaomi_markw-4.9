@@ -1,0 +1,93 @@
+/*
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "panels/dsi-panel-nt35521s-ebbg-720p-video.dtsi"
+#include "panels/dsi-panel-nt35596-ebbg-1080p-video.dtsi"
+#include "panels/dsi-panel-r63350-tianma-1080p-video.dtsi"
+
+
+&dsi_nt35521s_ebbg_720_video {
+	qcom,mdss-dsi-panel-timings-phy-v2 = [24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1b 08 09 05 03 04 a0];
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_nt35596_1080_vid {
+	qcom,mdss-dsi-panel-timings-phy-v2 = [24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1b 08 09 05 03 04 a0];
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&dsi_r63350_1080p_video {
+	qcom,mdss-dsi-panel-timings-phy-v2 = [24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1f 08 09 05 03 04 a0
+		24 1b 08 09 05 03 04 a0];
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
+&mdss_mdp {
+	/delete-node/ qcom,mdss_dsi_sim_video;
+	/delete-node/ qcom,mdss_dsi_dual_sim_video;
+	/delete-node/ qcom,mdss_dsi_sim_cmd;
+	/delete-node/ qcom,mdss_dsi_dual_sim_cmd;
+	/delete-node/ qcom,mdss_dsi_truly_1080p_video;
+	/delete-node/ qcom,mdss_dsi_truly_1080p_cmd;
+	/delete-node/ qcom,mdss_dsi_adv7533_1080p;
+	/delete-node/ qcom,mdss_dsi_adv7533_720p;
+	/delete-node/ qcom,mdss_dsi_r69006_1080p_video;
+	/delete-node/ qcom,mdss_dsi_r69006_1080p_cmd;
+	/delete-node/ qcom,mdss_dsi_truly_wuxga_video;
+	/delete-node/ qcom,mdss_dsi_lt8912_1080p_video;
+	/delete-node/ qcom,mdss_dsi_lt8912_480p_video;
+	/delete-node/ qcom,mdss_dsi_hx8399c_truly_video;
+	/delete-node/ qcom,mdss_dsi_boyi_hx83100a_800p_video;
+	/delete-node/ qcom,mdss_dsi_boent51021_1200p_video;
+	/delete-node/ qcom,mdss_dsi_hx8394d_kingdisplay_vid;
+	/delete-node/ qcom,mdss_dsi_inxnt51021_1200p_video;
+};
+
+&mdss_dsi0 {
+        qcom,dsi-pref-prim-pan = <&dsi_nt35521s_ebbg_720_video>;
+        qcom,dsi-pref-sub-pan = <&dsi_nt35596_1080_vid>;
+        qcom,dsi-pref-sub1-pan = <&dsi_r63350_1080p_video>;
+};
+
+&mdss_dsi0_pll {
+	/delete-property/ qcom,dsi-pll-ssc-en;
+	/delete-property/ qcom,dsi-pll-ssc-mode;
+};
+
+&mdss_dsi1_pll {
+	/delete-property/ qcom,dsi-pll-ssc-en;
+	/delete-property/ qcom,dsi-pll-ssc-mode;
+};
+
+&mdss_te_active {
+	mux {
+		function = "gpio";
+	};
+};
+
+&mdss_te_suspend {
+	mux {
+		function = "gpio";
+	};
+};

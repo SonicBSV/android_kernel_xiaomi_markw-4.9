@@ -11,9 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include "msm-audio-markw.dtsi"
+#include "msm8953-audio-markw.dtsi"
 #include "msm8953-general-markw.dtsi"
-#include "msm8953-panels-markw.dtsi"
+#include "msm8953-display-markw.dtsi"
 #include "msm8953-camera-sensor-qrd-markw.dtsi"
 #include "msm8953-pinctrl-markw.dtsi"
 #include "msm8953-memory-markw.dtsi"
