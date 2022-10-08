@@ -31,5 +31,8 @@
 			reg = <0 0 0 0x1200000>;
 			label = "venus_qseecom_mem";
 		};
+		dump_mem: mem_dump_region {
+		    size = <0 0x400000>;
+	    };
 	};
 };
