@@ -85,7 +85,7 @@
 /*
  * choose your ic chip type of focaltech
  */
-#define FTS_CHIP_TYPE   _FT3267
+#define FTS_CHIP_TYPE   _FT5346
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/
@@ -107,7 +107,7 @@
  * Report Pressure in multitouch
  * 1:enable(default),0:disable
  */
-#define FTS_REPORT_PRESSURE_EN                  0
+#define FTS_REPORT_PRESSURE_EN                  1
 
 /*
  * Force touch support
@@ -176,7 +176,7 @@
 /*
  * auto upgrade, please keep enable
  */
-#define FTS_AUTO_UPGRADE_EN                     1
+#define FTS_AUTO_UPGRADE_EN                     0
 
 /*
  * auto upgrade for lcd cfg
