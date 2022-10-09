@@ -1,0 +1,5 @@
+
+config TOUCHSCREEN_ATMEL308U
+	bool "ATMEL A308U touchpanel driver"
+	depends on CONFIG_INPUT_TOUCHSCREEN
+	default n
