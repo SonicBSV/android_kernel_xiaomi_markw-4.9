@@ -244,7 +244,7 @@ enum fg_mem_data_index {
 
 static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	/*       ID                    Address, Offset, Value*/
-#ifdef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_	С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 	SETTING(SOFT_COLD,       0x454,   0,      150),
 	SETTING(SOFT_HOT,        0x454,   1,      450),
 	SETTING(HARD_COLD,       0x454,   2,      0),
@@ -262,7 +262,7 @@ static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	SETTING(CHG_TERM_CURRENT, 0x4F8,   2,      250),
 	SETTING(IRQ_VOLT_EMPTY,	 0x458,   3,      3100),
 	SETTING(CUTOFF_VOLTAGE,	 0x40C,   0,      3200),
-#ifdef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_	С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      200),
 #else
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      30),
@@ -348,7 +348,7 @@ module_param_named(
 	battery_type, fg_batt_type, charp, 00600
 );
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_	С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 static int fg_sram_update_period_ms = 5000;
 #else
 static int fg_sram_update_period_ms = 30000;
@@ -4778,7 +4778,7 @@ static int fg_power_get_property(struct power_supply *psy,
 			val->intval = 1;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-#ifdef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_	С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 		val->intval = 4100000;
 #else
 		val->intval = chip->nom_cap_uah;
@@ -6515,7 +6515,7 @@ wait:
 	rc = of_property_read_u32(profile_node, "qcom,max-voltage-uv",
 					&chip->batt_max_voltage_uv);
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_	С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 	chip->batt_max_voltage_uv = 4380000;
 #endif
 
@@ -7201,7 +7201,7 @@ static int fg_of_init(struct fg_chip *chip)
 	OF_READ_PROPERTY(chip->evaluation_current,
 			"aging-eval-current-ma", rc,
 			DEFAULT_EVALUATION_CURRENT_MA);
-#ifdef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_	С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 	OF_READ_PROPERTY(chip->cc_cv_threshold_mv,
 			"fg-cc-cv-threshold-mv-global", rc, 0);
 #else
