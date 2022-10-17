@@ -18,8 +18,8 @@
 #include "msm8953-pmi8950.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8953 QRD MARKW (WT88553)";
-	compatible = "qcom,msm8953-qrd-wt88553",
+	model = "Qualcomm Technologies, Inc. MSM8953 + PMI8950 QRD SKU3";
+	compatible = "qcom,msm8953-qrd-sku3",
 		   "qcom,msm8953-qrd", "qcom,msm8953", "qcom,qrd";
 	qcom,board-id= <0x1000b 1>;
 };

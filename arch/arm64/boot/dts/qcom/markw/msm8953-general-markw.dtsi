@@ -10,6 +10,8 @@
  * GNU General Public License for more details.
  */
 
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+
 &spmi_bus {
 	qcom,pm8953@0 {
 		qcom,power-on@800 {
@@ -17,14 +19,111 @@
 			qcom,pon_1 {
 				qcom,support-reset = <1>;
 				qcom,s1-timer = <10256>;
+				qcom,s2-timer = <0>;
+				qcom,s2-type = <7>;
+		       };
+			qcom,pon_3 {
+				qcom,pon-type = <3>;
+				qcom,pull-up = <1>;
+				qcom,support-reset = <1>;
+				qcom,s1-timer = <10256>;
 				qcom,s2-timer = <2000>;
 				qcom,s2-type = <7>;
-		    };
-	    };
-    };
-    qcom,pmi8950@2 {
+			};
+		};
+
+		pm8953_vadc: vadc@3100 {
+			chan@36 {
+				qcom,decimation = <1>;
+				qcom,fast-avg-setup = <5>;
+			};
+		};
+
+		pm8953_adc_tm: vadc@3400 {
+			chan@36 {
+				qcom,decimation = <1>;
+				qcom,fast-avg-setup = <5>;
+			};
+		};
+
+		/delete-node/ qcom,pm8953_typec@bf00;
+          };
+
+	qcom,pmi8950@2 {
         /delete-node/ qcom,leds@a100;
-    };
+		pmi8950_gpios: gpios {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pwm_ir_default>;
+
+			pwm_ir_default: pmi8950_gpio1 {
+				status = "okay";
+				pins = "gpio1";
+				output-low;
+				bias-pull-down;
+				function = "func1";
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_MED>;
+		        };
+		};
+        };
+    qcom,pmi8950@3 {
+		labibb: qpnp-labibb-regulator {
+			ibb_regulator: qcom,ibb@dc00 {
+				/delete-property/
+					qcom,qpnp-ibb-use-default-voltage;
+				qcom,qpnp-ibb-init-lcd-voltage = <5700000>;
+			};
+
+			lab_regulator: qcom,lab@de00 {
+				/delete-property/
+					qcom,qpnp-ibb-use-default-voltage;
+				qcom,qpnp-ibb-init-lcd-voltage = <5700000>;
+			};
+		};
+	};
+};
+
+&adv_vreg {
+	status = "disabled";
+};
+
+&thermal_zones {
+	/delete-node/ pa-therm1-adc;
+};
+
+&pmi_haptic {
+	status = "okay";
+	qcom,vmax-mv = <2700>;
+	qcom,play-rate-us = <6667>;
+	wf_0 {
+		qcom,wf-vmax-mv = <2900>;
+		qcom,wf-pattern = [7e 3e 3e 3e];
+		qcom,wf-play-rate-us = <6667>;
+	};
+	wf_1 {
+		qcom,wf-vmax-mv = <2900>;
+		qcom,wf-pattern = [7e 7e 7e 02 02 02 02 02 02];
+		qcom,wf-play-rate-us = <7143>;
+	};
+	wf_2 {
+		qcom,wf-vmax-mv = <2900>;
+		qcom,wf-pattern = [7e 7e 7e];
+		qcom,wf-play-rate-us = <4000>;
+	};
+	wf_3 {
+		qcom,wf-vmax-mv = <2900>;
+		qcom,wf-pattern = [7e 7e 7e 7e];
+		qcom,wf-play-rate-us = <6667>;
+	};
+	wf_4 {
+		qcom,wf-vmax-mv = <2900>;
+		qcom,wf-pattern = [7e 7e 7e];
+		qcom,wf-play-rate-us = <5000>;
+	};
+	wf_5 {
+		qcom,wf-vmax-mv = <2900>;
+		qcom,wf-pattern = [7e 7e 7e 7e];
+		qcom,wf-play-rate-us = <6667>;
+	};
 };
 
 &pmic_analog_codec {
@@ -54,7 +153,7 @@
 	qcom,resume-soc = <99>;
 	qcom,fg-cutoff-voltage-mv = <3400>;
 	qcom,fg-cc-cv-threshold-mv = <4390>;
-	qcom,fg-vbat-estimate-diff-mv = <3200>;
+	qcom,fg-vbat-estimate-diff-mv = <200>;
 	qcom,cold-bat-decidegc = <(0)>;
 	qcom,cool-bat-decidegc = <(100)>;
 	qcom,hot-bat-decidegc = <600>;
@@ -66,9 +165,9 @@
 };
 
 &pmi8950_pwm {
-	status = "okay";
+    status = "okay";
 };
-
+		
 &pmi8950_flash0 {
 	qcom,current = <750>;
 };
@@ -82,6 +181,11 @@
 };
 
 &pmi8950_torch1 {
+	qcom,current = <100>;
+};
+
+&pmi8950_torch2 {
+    qcom,led-name = "flashlight";
 	qcom,current = <100>;
 };
 
@@ -100,6 +204,11 @@
 		compatible = "qcom,sec-boot-fuse";
 		reg = <0xa41d0 0x4>;
 		reg-names = "sec-boot-base";
+	};
+
+	usb3: ssusb@7000000 {
+		vbus_dwc3-supply = <&smbcharger_charger_otg>;
+		qcom,detect-dpdm-floating;
 	};
 
 	qcom_seecom: qseecom@84A00000 {
@@ -132,30 +241,11 @@
 
 	/delete-node/ qseecom@85b00000;
 
-	gen-vkey-atmel {
-		compatible = "qcom,gen-vkeys-atm";
-		label = "atmel-maxtouch";
-		qcom,disp-maxx = <1080>;
-		qcom,disp-maxy = <1920>;
-		qcom,panel-maxx = <1080>;
-		qcom,panel-maxy = <2080>;
-		qcom,key-codes = <139 172 158>;
-		qcom,y-offset = <0>;
-	};
-
-	gpio-leds {
-		compatible = "gpio-leds";
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_led_off>;
-
-			infred {
-			gpios = <&tlmm 45 0>;
-			label = "infrared";
-			linux,default-trigger = "infra-red";
-			default-state = "off";
-			retain-state-suspended;
-		};
+	pwm_ir {
+		compatible = "pwm-ir";
+		pwms = <&pmi8950_pwm 0 0>;
+		reg-id = "vdd";
+		vdd-supply = <&pm8953_l8>;
 	};
 
 	fpc1020 {
@@ -256,10 +346,9 @@
 		vdd-supply = <&pm8953_l10>;
 		vcc_i2c-supply = <&pm8953_l5>;
 		/* pins used by touchscreen */
-		pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_release";
+		pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
 		pinctrl-0 = <&ts_int_active &ts_reset_active>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-		pinctrl-2 = <&ts_release>;
 		atmel,reset-gpio = <&tlmm 64 0x0>;
 		atmel,irq-gpio = <&tlmm 65 0x2008>;
 		atmel,mxt-fw-name = "mxt_308u.fw";
@@ -293,61 +382,53 @@
 };
 
 &i2c_2  { /* i2c 6 */
-	aw2013@45 { /*blink */
-		compatible = "awinic,aw2013";
-		reg = <0x45>;
-		rgb_led-supply = <&pm8953_l10>;
-		red {
-			label = "red";
-			linux,default-trigger = "battery-red";
-			default-state = "off";
-			retain-state-suspended;
-		};
+		aw2013@45 {
+			compatible = "awinic,aw2013";
+			reg = <0x45>;
+			vdd-supply = <&pm8953_l10>;
+			vcc-supply = <&pm8953_l5>;
 
-		green {
-			label = "green";
-			linux,default-trigger = "battery-green";
-			default-state = "off";
-			retain-state-suspended;
-		};
+			aw2013,red {
+				aw2013,name = "red";
+				aw2013,id = <0>;
+				aw2013,max-brightness = <255>;
+				aw2013,max-current = <1>;
+				aw2013,rise-time-ms = <3>;
+				aw2013,hold-time-ms = <1>;
+				aw2013,fall-time-ms = <3>;
+				aw2013,off-time-ms = <3>;
+			};
 
-		blue {
-			label = "blue";
-			linux,default-trigger = "battery-blue";
-			default-state = "off";
-			retain-state-suspended;
-		};
-		white {
-			label = "white";
-			linux,default-trigger = "none";
-			default-state = "off";
-			retain-state-suspended;
-		};
+			aw2013,green {
+				aw2013,name = "green";
+				aw2013,id = <1>;
+				aw2013,max-brightness = <255>;
+				aw2013,max-current = <1>;
+				aw2013,rise-time-ms = <3>;
+				aw2013,hold-time-ms = <1>;
+				aw2013,fall-time-ms = <3>;
+				aw2013,off-time-ms = <3>;
+			};
 
-		yellow {
-			label = "yellow";
-			linux,default-trigger = "none";
-			default-state = "off";
-			retain-state-suspended;
+			aw2013,blue {
+				aw2013,name = "blue";
+				aw2013,id = <2>;
+				aw2013,max-brightness = <255>;
+				aw2013,max-current = <1>;
+				aw2013,rise-time-ms = <3>;
+				aw2013,hold-time-ms = <1>;
+				aw2013,fall-time-ms = <3>;
+				aw2013,off-time-ms = <3>;
+			};
 		};
-
-		cyan {
-			label = "cyan";
-			linux,default-trigger = "none";
-			default-state = "off";
-			retain-state-suspended;
-		};
-		purple {
-			label = "purple";
-			linux,default-trigger = "none";
-			default-state = "off";
-			retain-state-suspended;
-		};
-
-	};
-
 	pericom-type-c@1d {
 		status="disabled";
+	};
+};
+
+&thermal_zones {
+	xo-therm-adc {
+		polling-delay = <1000>;
 	};
 };
 
@@ -370,7 +451,7 @@
 			vendor {
 				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/cust";
 				fsmgr_flags = "wait";
-				status = "disable";
+				status = "ok";
 			};
 
 			system {
@@ -382,5 +463,33 @@
 				status = "ok";
 			};
 		};
+	};
+};
+
+&soc {
+	gpio_keys {
+		/delete-node/ home;
+	};
+};
+
+&gpio_key_active {
+	mux {
+		pins = "gpio85", "gpio86", "gpio87";
+		function = "gpio";
+	};
+
+	config {
+		pins = "gpio85", "gpio86", "gpio87";
+	};
+};
+
+&gpio_key_suspend {
+	mux {
+		pins = "gpio85", "gpio86", "gpio87";
+		function = "gpio";
+	};
+
+	config {
+		pins = "gpio85", "gpio86", "gpio87";
 	};
 };
