@@ -30,6 +30,10 @@
 #include "wcd-mbhc-legacy.h"
 #include "wcd-mbhc-v2.h"
 
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+#include "sdm660_cdc/sdm660-cdc-registers.h"
+#endif
+
 static int det_extn_cable_en;
 module_param(det_extn_cable_en, int, 0664);
 MODULE_PARM_DESC(det_extn_cable_en, "enable/disable extn cable detect");
@@ -317,10 +321,20 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 				wcd_enable_curr_micbias(mbhc,
 						WCD_MBHC_EN_PULLUP);
 			} else {
-				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+				wcd_enable_curr_micbias(mbhc,
+							WCD_MBHC_EN_MB);
+#else
+				wcd_enable_curr_micbias(mbhc,
+							WCD_MBHC_EN_CS);
+#endif
 			}
 		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+#else
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#endif
 		} else {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
 		}
@@ -452,11 +466,22 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int rc, spl_hs_count = 0;
 	int cross_conn;
 	int try = 0;
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+	bool detection_type;
+#endif
 
 	pr_debug("%s: enter\n", __func__);
 
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	codec = mbhc->codec;
+
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+		detection_type = (snd_soc_read(codec,
+					MSM89XX_PMIC_ANALOG_MBHC_DET_CTL_1)) & 0x20;
+
+		if (detection_type)
+			return;
+#endif
 
 	/*
 	 * Enable micbias/pullup for detection in correct work.
