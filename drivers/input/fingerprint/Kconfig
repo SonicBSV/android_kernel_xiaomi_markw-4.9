@@ -3,6 +3,11 @@ config INPUT_FINGERPRINT
 	help
 	  Say Y here to enable fingerprint driver support.
 
+if MACH_XIAOMI_MARKW
+source "drivers/input/fingerprint/goodix_markw/Kconfig"
+source "drivers/input/fingerprint/fpc_markw/Kconfig"
+endif
+
 if MACH_XIAOMI_C6
 source "drivers/input/fingerprint/goodix_mido/Kconfig"
 source "drivers/input/fingerprint/fpc_mido/Kconfig"
