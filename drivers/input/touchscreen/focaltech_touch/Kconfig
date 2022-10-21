@@ -1,8 +1,7 @@
 #
 # Focaltech Touchscreen driver configuration
 #
-
-config TOUCHSCREEN_FTS
+menuconfig TOUCHSCREEN_FTS
 	bool "Focaltech Touchscreen"
 	depends on I2C
 	default n

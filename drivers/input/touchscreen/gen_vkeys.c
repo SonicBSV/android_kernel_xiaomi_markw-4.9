@@ -30,7 +30,7 @@
 #define BORDER_ADJUST_NUM 3
 #define BORDER_ADJUST_DENOM 4
 
-static struct kobject *vkey_obj;
+struct kobject *vkey_obj;
 static char *vkey_buf;
 
 static ssize_t vkey_show(struct kobject  *obj,
@@ -217,7 +217,7 @@ static struct platform_driver vkeys_driver = {
 	.remove = vkeys_remove,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = "gen-vkey",
+		.name = "gen_vkeys",
 		.of_match_table = vkey_match_table,
 	},
 };
