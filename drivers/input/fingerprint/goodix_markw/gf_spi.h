@@ -3,7 +3,6 @@
 
 #include <linux/types.h>
 #include <linux/notifier.h>
-#include <linux/wakelock.h>
 /**********************************************************/
 enum FP_MODE{
 	GF_IMAGE_MODE = 0,
@@ -74,7 +73,7 @@ struct gf_dev {
 	struct pinctrl_state *pinctrl_state[ARRAY_SIZE(pctl_names)];
 
 	struct input_dev *input;
-	/* buffer is NULL unless this device is open (users > 0) */
+
 	unsigned users;
 	signed irq_gpio;
 	signed reset_gpio;
@@ -85,11 +84,10 @@ struct gf_dev {
 #ifdef GF_FASYNC
 	struct fasync_struct *async;
 #endif
-	struct notifier_block notifier;
-	struct work_struct fb_work;
+	struct notifier_block gf_notifier;
 	char device_available;
 	char fb_black;
-	struct wake_lock ttw_wl;
+	struct wakeup_source ttw_wl;
 };
 
 int gf_parse_dts(struct gf_dev *gf_dev);

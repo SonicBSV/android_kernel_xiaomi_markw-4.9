@@ -59,7 +59,7 @@ static int select_pin_ctl(struct gf_dev *gf_dev, const char *name)
 	}
 	rc = -EINVAL;
 	dev_err(dev, "%s:'%s' not found\n", __func__, name);
-exit:
+	exit:
 	return rc;
 }
 
@@ -162,7 +162,7 @@ static int hw_reset(struct  gf_dev *gf_dev)
 	int rc = select_pin_ctl(gf_dev, "goodixfp_reset_reset");
 	if (rc)
 		goto exit;
-	 mdelay(3);
+	mdelay(3);
 
 	rc = select_pin_ctl(gf_dev, "goodixfp_reset_active");
 	if (rc)
@@ -170,7 +170,7 @@ static int hw_reset(struct  gf_dev *gf_dev)
 
 	irq_gpio = gpio_get_value(gf_dev->irq_gpio);
 	dev_info(dev, "IRQ after reset %d\n", irq_gpio);
-exit:
+	exit:
 	return rc;
 }
 

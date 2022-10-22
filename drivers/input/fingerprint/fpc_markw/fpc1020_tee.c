@@ -24,7 +24,7 @@
  *
  *
  * Copyright (c) 2015 Fingerprint Cards AB <tech@fingerprints.com>
- * Copyright (C) 2017 XiaoMi, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License Version 2
@@ -44,7 +44,6 @@
 #include <linux/regulator/consumer.h>
 #include <soc/qcom/scm.h>
 #include <linux/platform_device.h>
-#include <linux/wakelock.h>
 
 #define FPC1020_RESET_LOW_US 1000
 #define FPC1020_RESET_HIGH1_US 100
@@ -56,7 +55,6 @@
 #define NUM_PARAMS_REG_ENABLE_SET 2
 
 static const char * const pctl_names[] = {
-
 	"fpc1020_reset_reset",
 	"fpc1020_reset_active",
 	"fpc1020_irq_active",
@@ -72,7 +70,7 @@ struct fpc1020_data {
 	struct clk *core_clk;
 #endif
 
-	struct wake_lock ttw_wl;
+	struct wakeup_source ttw_wl;
 	int irq_gpio;
 	int rst_gpio;
 	struct mutex lock;
@@ -89,6 +87,8 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
 		const char *label, int *gpio);
 static int hw_reset(struct  fpc1020_data *fpc1020);
+
+static struct kernfs_node *soc_symlink = NULL;
 
 #ifdef LINUX_CONTROL_SPI_CLK
 static int set_clks(struct fpc1020_data *fpc1020, bool enable)
@@ -422,12 +422,8 @@ static ssize_t compatible_all_set(struct device *dev,
 		}
 		devm_free_irq(dev, gpio_to_irq(fpc1020->irq_gpio), fpc1020);
 		fpc1020->compatible_enabled = 0;
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-	}else
+	} else
 		goto exit;
-#else
-	}
-#endif
 	hw_reset(fpc1020);
 	return count;
 exit:
@@ -458,8 +454,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	dev_dbg(fpc1020->dev, "%s\n", __func__);
 
 	if (atomic_read(&fpc1020->wakeup_enabled)) {
-		wake_lock_timeout(&fpc1020->ttw_wl,
-					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
+		__pm_wakeup_event(&fpc1020->ttw_wl, FPC_TTW_HOLD_TIME);
 	}
 
 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
@@ -491,6 +486,9 @@ static int fpc1020_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int rc = 0;
+	struct device *platform_dev;
+	struct kobject *soc_kobj;
+	struct kernfs_node *devices_node, *soc_node;
 
 	struct device_node *np = dev->of_node;
 
@@ -534,7 +532,8 @@ static int fpc1020_probe(struct platform_device *pdev)
 	}
 #endif
 
-	atomic_set(&fpc1020->wakeup_enabled, 0);
+	atomic_set(&fpc1020->wakeup_enabled, 1);
+
 #ifdef LINUX_CONTROL_SPI_CLK
 	fpc1020->clocks_enabled = false;
 	fpc1020->clocks_suspended = false;
@@ -542,12 +541,33 @@ static int fpc1020_probe(struct platform_device *pdev)
 
 	mutex_init(&fpc1020->lock);
 
-	wake_lock_init(&fpc1020->ttw_wl, WAKE_LOCK_SUSPEND, "fpc_ttw_wl");
+	wakeup_source_init(&fpc1020->ttw_wl, "fpc_ttw_wl");
 
 	rc = sysfs_create_group(&dev->kobj, &attribute_group);
 	if (rc) {
 		dev_err(dev, "could not create sysfs\n");
 		goto exit;
+	}
+
+	if(!dev->parent || !dev->parent->parent) {
+		dev_warn(dev, "Parent platform device not found");
+		goto exit;
+	}
+
+	platform_dev = dev->parent->parent;
+	if(strcmp(kobject_name(&platform_dev->kobj), "platform")) {
+		dev_warn(dev, "Parent platform device name not matched: %s", kobject_name(&platform_dev->kobj));
+		goto exit;
+	}
+
+	devices_node = platform_dev->kobj.sd->parent;
+	soc_kobj = &dev->parent->kobj;
+	soc_node = soc_kobj->sd;
+	kernfs_get(soc_node);
+	soc_symlink = kernfs_create_link(devices_node, kobject_name(soc_kobj), soc_node);
+	kernfs_put(soc_node);
+	if(IS_ERR(soc_symlink)) {
+		dev_warn(dev, "Unable to create soc symlink");
 	}
 
 	dev_info(dev, "%s: ok\n", __func__);
@@ -557,11 +577,14 @@ exit:
 
 static int fpc1020_remove(struct platform_device *pdev)
 {
-	struct  fpc1020_data *fpc1020 = dev_get_drvdata(&pdev->dev);
+        struct  fpc1020_data *fpc1020 = dev_get_drvdata(&pdev->dev);
+	if(!IS_ERR(soc_symlink)) {
+		kernfs_remove_by_name(soc_symlink->parent, soc_symlink->name);
+	}
 
 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
 	mutex_destroy(&fpc1020->lock);
-	wake_lock_destroy(&fpc1020->ttw_wl);
+	wakeup_source_trash(&fpc1020->ttw_wl);
 	dev_info(&pdev->dev, "%s\n", __func__);
 	return 0;
 }
@@ -593,11 +616,7 @@ static const struct dev_pm_ops fpc1020_pm_ops = {
 #endif
 
 static struct of_device_id fpc1020_of_match[] = {
-#ifdef CONFIG_MACH_XIAOMI_MARKW
 	{ .compatible = "soc:fpc1020", },
-#else
-	{ .compatible = "fpc,fpc1020", },
-#endif
 	{}
 };
 MODULE_DEVICE_TABLE(of, fpc1020_of_match);
@@ -617,7 +636,11 @@ static struct platform_driver fpc1020_driver = {
 
 static int __init fpc1020_init(void)
 {
-	int rc = platform_driver_register(&fpc1020_driver);
+	int rc;
+
+		return -ENODEV;
+
+	rc = platform_driver_register(&fpc1020_driver);
 	if (!rc)
 		pr_info("%s OK\n", __func__);
 	else
