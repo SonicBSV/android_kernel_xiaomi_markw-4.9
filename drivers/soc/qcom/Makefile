@@ -113,3 +113,4 @@ obj-$(CONFIG_MSM_BAM_DMUX) += bam_dmux.o
 obj-$(CONFIG_WCNSS_CORE) += wcnss/
 obj-$(CONFIG_BIG_CLUSTER_MIN_FREQ_ADJUST) += big_cluster_min_freq_adjust.o
 obj-$(CONFIG_SERIAL_NUM) += serial_num.o
+obj-$(CONFIG_SECBOOT_FUSE) += secboot_fuse.o
