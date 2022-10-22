@@ -30,10 +30,6 @@
 #include "wcd-mbhc-legacy.h"
 #include "wcd-mbhc-v2.h"
 
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-#include "sdm660_cdc/sdm660-cdc-registers.h"
-#endif
-
 static int det_extn_cable_en;
 module_param(det_extn_cable_en, int, 0664);
 MODULE_PARM_DESC(det_extn_cable_en, "enable/disable extn cable detect");
@@ -131,7 +127,9 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	enum wcd_mbhc_plug_type plug_type = MBHC_PLUG_TYPE_NONE;
 	s16 reg1 = 0;
 	bool hphl_sch_res = 0, hphr_sch_res = 0;
-
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+    return false;
+#endif
 	if (wcd_swch_level_remove(mbhc)) {
 		pr_debug("%s: Switch level is low\n", __func__);
 		return -EINVAL;
@@ -466,22 +464,11 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int rc, spl_hs_count = 0;
 	int cross_conn;
 	int try = 0;
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-	bool detection_type;
-#endif
 
 	pr_debug("%s: enter\n", __func__);
 
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	codec = mbhc->codec;
-
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-		detection_type = (snd_soc_read(codec,
-					MSM89XX_PMIC_ANALOG_MBHC_DET_CTL_1)) & 0x20;
-
-		if (detection_type)
-			return;
-#endif
 
 	/*
 	 * Enable micbias/pullup for detection in correct work.
@@ -490,11 +477,14 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	 * is handled with ref-counts by individual codec drivers, there is
 	 * no need to enabale micbias/pullup here
 	 */
-
-	wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+        WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 0);
+	wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);	
 
 	/* Enable HW FSM */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
+	 	msleep(20);
+#endif
 	/*
 	 * Check for any button press interrupts before starting 3-sec
 	 * loop.

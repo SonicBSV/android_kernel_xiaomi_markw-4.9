@@ -3291,7 +3291,6 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 // const char *wsa_prefix_str = NULL;
 //	char *temp_str = NULL;
 #endif
-//	char *temp_str = NULL;
 
 	pdata = devm_kzalloc(&pdev->dev,
 				sizeof(struct msm_asoc_mach_data),
@@ -3480,7 +3479,9 @@ parse_mclk_freq:
 	}
 
 	pdata->spk_ext_pa_gpio_p = of_parse_phandle(pdev->dev.of_node,
+#ifdef CONFIG_MACH_XIAOMI_MARKW
 							spk_ext_pa, 0);
+#endif
 
 	ret = is_us_eu_switch_gpio_support(pdev, pdata);
 	if (ret < 0) {

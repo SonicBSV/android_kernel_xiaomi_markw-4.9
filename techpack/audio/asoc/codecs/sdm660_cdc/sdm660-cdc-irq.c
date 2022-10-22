@@ -132,9 +132,14 @@ int wcd9xxx_spmi_request_irq(int irq, irq_handler_t handler,
 	map.linuxirq[irq] =
 		platform_get_irq_byname(map.spmi[BIT_BYTE(irq)],
 					irq_names[irq]);
-
-	irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+	if (strcmp(name, "mbhc sw intr"))
+		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 			IRQF_ONESHOT;
+	else
+		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+			IRQF_ONESHOT | IRQF_NO_SUSPEND;
+#endif
 	pr_debug("%s: name:%s irq_flags = %lx\n", __func__, name, irq_flags);
 
 	rc = devm_request_threaded_irq(&map.spmi[BIT_BYTE(irq)]->dev,
