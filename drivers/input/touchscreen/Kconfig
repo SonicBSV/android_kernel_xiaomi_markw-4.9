@@ -1492,4 +1492,6 @@ source "drivers/input/touchscreen/gt9xx_v2.4/Kconfig"
 
 source "drivers/input/touchscreen/Atmel308U/Kconfig"
 
+source "drivers/input/touchscreen/FT5346/Kconfig"
+
 endif
