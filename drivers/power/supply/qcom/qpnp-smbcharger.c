@@ -437,7 +437,7 @@ static const unsigned int smbchg_extcon_cable[] = {
 };
 
 /* fg cc workaround */
-#if defined(CONFIG_MACH_XIAOMI_C6)
+#if defined(CONFIG_MACH_XIAOMI_С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 #define NO_CHARGE_COUNTER
 #endif
 
@@ -1140,7 +1140,7 @@ static int get_prop_batt_resistance_id(struct smbchg_chip *chip)
 	return rbatt;
 }
 
-#ifndef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 #define DEFAULT_BATT_FULL_CHG_CAPACITY	0
 static int get_prop_batt_full_charge(struct smbchg_chip *chip)
 {
@@ -3835,7 +3835,7 @@ static void smbchg_external_power_changed(struct power_supply *psy)
 									rc);
 	}
 
-#ifndef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 	/* adjust vfloat */
 	smbchg_vfloat_adjust_check(chip);
 #endif
@@ -6044,7 +6044,7 @@ static enum power_supply_property smbchg_battery_properties[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_RESISTANCE_ID,
-#ifndef CONFIG_MACH_XIAOMI_C6
+#if defined(CONFIG_MACH_XIAOMI_С6) || defined(CONFIG_MACH_XIAOMI_MARKW)
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 #endif
 	POWER_SUPPLY_PROP_SAFETY_TIMER_ENABLE,
