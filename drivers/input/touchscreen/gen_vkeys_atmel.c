@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/input.h>
-#include <linux/input/gen_vkeys.h>
+#include <linux/input/gen_vkeys_atmel.h>
 
 #define MAX_BUF_SIZE	256
 #define VKEY_VER_CODE	"0x01"
@@ -208,7 +208,7 @@ static int vkeys_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id vkey_match_table[] = {
-	{ .compatible = "qcom,gen-vkeys",},
+	{ .compatible = "qcom,gen-vkeys-atm",},
 	{ },
 };
 
@@ -217,7 +217,7 @@ static struct platform_driver vkeys_driver = {
 	.remove = vkeys_remove,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = "gen_vkeys",
+		.name = "gen_vkeys_atmel",
 		.of_match_table = vkey_match_table,
 	},
 };
