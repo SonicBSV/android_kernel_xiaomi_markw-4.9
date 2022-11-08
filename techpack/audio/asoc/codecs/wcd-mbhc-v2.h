@@ -147,9 +147,7 @@ do {                                                    \
 #endif
 #define GND_MIC_SWAP_THRESHOLD 4
 #define GND_MIC_USBC_SWAP_THRESHOLD 2
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-#define WCD_FAKE_REMOVAL_MIN_PERIOD_MS 1000
-#endif
+#define WCD_FAKE_REMOVAL_MIN_PERIOD_MS 100
 #define HS_VREF_MIN_VAL 1400
 #define FW_READ_ATTEMPTS 15
 #define FW_READ_TIMEOUT 4000000

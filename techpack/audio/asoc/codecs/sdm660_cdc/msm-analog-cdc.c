@@ -104,8 +104,6 @@ static char on_demand_supply_name[][MAX_ON_DEMAND_SUPPLY_NAME_LENGTH] = {
 #ifdef CONFIG_MACH_XIAOMI_MARKW
 static int external_spk_control = 1;
 static int external_hs_control = 0;
-
-int smg_in_gpio = 1;
 #endif
 
 static struct wcd_mbhc_register
@@ -1939,19 +1937,6 @@ static int set_external_hs_pa(struct snd_kcontrol *kcontrol,
 	msm_hs_ext_pa_ctrl(pdata, external_hs_control);
 	return 1;
 }
-
-static int get_external_hp_analog_switch(struct snd_kcontrol *kcontrol,
-                       struct snd_ctl_elem_value *ucontrol)
-{
-        return 0;
-}
-static int set_external_hp_analog_switch(struct snd_kcontrol *kcontrol,
-                       struct snd_ctl_elem_value *ucontrol)
-{
-	bool hp_analog_control = ucontrol->value.integer.value[0];
-	gpio_set_value(smg_in_gpio, !hp_analog_control);
-	return 0;
-}
 #endif
 
 static const char * const msm_anlg_cdc_ear_pa_boost_ctrl_text[] = {
@@ -1983,12 +1968,6 @@ static const char * const msm_external_hs_pa_text[] = {
 		"OFF", "ON"};
 static const struct soc_enum msm_external_hs_pa_enum[] = {
 		SOC_ENUM_SINGLE_EXT(2, msm_external_hs_pa_text),
-};
-
-static const char * const msm_external_hp_analog_switch_text[] = {
-                "OFF", "ON"};
-static const struct soc_enum msm_external_hp_analog_switch_enum[] = {
-                SOC_ENUM_SINGLE_EXT(2, msm_external_hp_analog_switch_text),
 };
 #endif
 
@@ -2036,8 +2015,6 @@ static const struct snd_kcontrol_new msm_anlg_cdc_snd_controls[] = {
 		get_external_spk_pa, set_external_spk_pa),
 	SOC_ENUM_EXT("HS PA Open", msm_external_hs_pa_enum[0],
 		get_external_hs_pa, set_external_hs_pa),
-	SOC_ENUM_EXT("HP ANALOG SWITCH", msm_external_hp_analog_switch_enum[0],
-                get_external_hp_analog_switch, set_external_hp_analog_switch),
 #endif
 
 	SOC_ENUM_EXT("Speaker Boost", msm_anlg_cdc_spk_boost_ctl_enum[0],
@@ -2861,13 +2838,6 @@ static void wcd_imped_config(struct snd_soc_codec *codec,
 		dev_dbg(codec->dev,
 			"%s, detected impedance is less than 4 Ohm\n",
 			 __func__);
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-		return;
-	}
-	if (value >= wcd_imped_val[ARRAY_SIZE(wcd_imped_val) - 1]) {
-		pr_err("%s, invalid imped, greater than 48 Ohm\n = %d\n",
-			__func__, value);
-#endif
 		return;
 	}
 

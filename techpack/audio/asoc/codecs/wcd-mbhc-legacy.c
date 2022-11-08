@@ -127,9 +127,7 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	enum wcd_mbhc_plug_type plug_type = MBHC_PLUG_TYPE_NONE;
 	s16 reg1 = 0;
 	bool hphl_sch_res = 0, hphr_sch_res = 0;
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-    return false;
-#endif
+
 	if (wcd_swch_level_remove(mbhc)) {
 		pr_debug("%s: Switch level is low\n", __func__);
 		return -EINVAL;
@@ -477,14 +475,11 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	 * is handled with ref-counts by individual codec drivers, there is
 	 * no need to enabale micbias/pullup here
 	 */
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-        WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 0);
-	wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);	
+
+	wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 
 	/* Enable HW FSM */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
-	 	msleep(20);
-#endif
 	/*
 	 * Check for any button press interrupts before starting 3-sec
 	 * loop.

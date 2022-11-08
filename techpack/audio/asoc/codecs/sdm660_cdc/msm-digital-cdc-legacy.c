@@ -1354,12 +1354,11 @@ static ssize_t headphone_gain_store(struct kobject *kobj,
 	int input_l, input_r;
 
 	sscanf(buf, "%d %d", &input_l, &input_r);
-#ifdef CONFIG_MACH_XIAOMI_MARKW
-	if (input_l < -40 || input_l > 20)
+
+	if (input_l < -84 || input_l > 20)
 		input_l = 0;
 
-	if (input_r < -40 || input_r > 20)
-#endif
+	if (input_r < -84 || input_r > 20)
 		input_r = 0;
 
 	snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_RX1_VOL_CTL_B2_CTL, input_l);
