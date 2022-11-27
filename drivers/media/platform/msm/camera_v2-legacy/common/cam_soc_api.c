@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/msm-bus.h>
-#include <linux/clk/msm-clk.h>
 #include "cam_soc_api.h"
 
 struct msm_cam_bus_pscale_data {
@@ -205,7 +204,7 @@ int msm_camera_get_clk_info(struct platform_device *pdev,
 {
 	int rc = 0;
 
-	if (!pdev || (&pdev->dev == NULL) || !clk_info || !clk_ptr || !num_clk)
+	if (!pdev || !&pdev->dev || !clk_info || !clk_ptr || !num_clk)
 		return -EINVAL;
 
 	rc = msm_camera_get_clk_info_internal(&pdev->dev,
@@ -455,17 +454,6 @@ long msm_camera_clk_set_rate(struct device *dev,
 }
 EXPORT_SYMBOL(msm_camera_clk_set_rate);
 
-int msm_camera_set_clk_flags(struct clk *clk, unsigned long flags)
-{
-	if (!clk)
-		return -EINVAL;
-
-	CDBG("clk : %p, flags : %ld\n", clk, flags);
-
-	return clk_set_flags(clk, flags);
-}
-EXPORT_SYMBOL(msm_camera_set_clk_flags);
-
 /* release memory allocated for clocks */
 static int msm_camera_put_clk_info_internal(struct device *dev,
 				struct msm_cam_clk_info **clk_info,
@@ -508,7 +496,7 @@ int msm_camera_put_clk_info(struct platform_device *pdev,
 {
 	int rc = 0;
 
-	if (!pdev || (&pdev->dev == NULL) || !clk_info || !clk_ptr)
+	if (!pdev || !&pdev->dev || !clk_info || !clk_ptr)
 		return -EINVAL;
 
 	rc = msm_camera_put_clk_info_internal(&pdev->dev,

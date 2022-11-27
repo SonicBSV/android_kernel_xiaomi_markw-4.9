@@ -22,6 +22,7 @@
 #include <linux/iommu.h>
 #include <asm/dma-iommu.h>
 #include <linux/dma-direction.h>
+#include <linux/dma-attrs.h>
 #include <linux/dma-buf.h>
 
 #include "msm_camera_io_util.h"
@@ -318,7 +319,6 @@ err_reg_enable:
 int msm_jpeg_platform_setup(struct msm_jpeg_device *pgmn_dev)
 {
 	int rc = -1;
-	int i;
 	struct resource *jpeg_irq_res;
 	void *jpeg_base, *vbif_base;
 	struct platform_device *pdev = pgmn_dev->pdev;
@@ -354,19 +354,6 @@ int msm_jpeg_platform_setup(struct msm_jpeg_device *pgmn_dev)
 		JPEG_PR_ERR("%s: failed to get the clocks\n", __func__);
 		rc = -ENXIO;
 		goto err_jpeg_clk;
-	}
-
-	/*set memcore and mem periphery logic flags to 0*/
-	for (i = 0; i < pgmn_dev->num_clk; i++) {
-		if ((strcmp(pgmn_dev->jpeg_clk_info[i].clk_name,
-				"core_clk") == 0) ||
-			(strcmp(pgmn_dev->jpeg_clk_info[i].clk_name,
-				"mmss_camss_jpeg_axi_clk") == 0)) {
-			msm_camera_set_clk_flags(pgmn_dev->jpeg_clk[i],
-				CLKFLAG_NORETAIN_MEM);
-			msm_camera_set_clk_flags(pgmn_dev->jpeg_clk[i],
-				CLKFLAG_NORETAIN_PERIPH);
-		}
 	}
 
 	/* get all the regulators information */

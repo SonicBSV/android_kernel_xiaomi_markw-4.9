@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/delay.h>
+#include <linux/avtimer_kernel.h>
 #include <media/v4l2-subdev.h>
 #include <media/msmb_isp-legacy.h>
 #include <linux/msm-bus.h>
@@ -771,9 +772,7 @@ struct vfe_device {
 	uint32_t is_split;
 	uint32_t dual_vfe_enable;
 	unsigned long page_fault_addr;
-#ifndef CONFIG_MACH_XIAOMI_C6
 	uint32_t vfe_hw_limit;
-#endif
 
 	/* Debug variables */
 	int dump_reg;

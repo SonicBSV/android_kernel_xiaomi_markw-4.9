@@ -153,7 +153,6 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	struct msm_camera_slave_info *slave_info;
 	const char *sensor_name;
 	uint32_t retry = 0;
-	uint32_t check_id_retry = 0;
 
 	if (!s_ctrl) {
 		pr_err("%s:%d failed: %pK\n",
@@ -205,13 +204,7 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 			sensor_i2c_client);
 		if (rc < 0)
 			return rc;
-
-		for (check_id_retry = 0; check_id_retry < 3; check_id_retry++) {
-			rc = msm_sensor_check_id(s_ctrl);
-			if (!rc) break;
-			msleep(20);
-		}
-
+		rc = msm_sensor_check_id(s_ctrl);
 		if (rc < 0) {
 			msm_camera_power_down(power_info,
 				s_ctrl->sensor_device_type, sensor_i2c_client);
@@ -1422,13 +1415,30 @@ static int msm_sensor_power(struct v4l2_subdev *sd, int on)
 	return rc;
 }
 
+static int msm_sensor_v4l2_enum_fmt(struct v4l2_subdev *sd,
+	unsigned int index, enum v4l2_mbus_pixelcode *code)
+{
+	struct msm_sensor_ctrl_t *s_ctrl = get_sctrl(sd);
+
+	if ((unsigned int)index >= s_ctrl->sensor_v4l2_subdev_info_size)
+		return -EINVAL;
+
+	*code = s_ctrl->sensor_v4l2_subdev_info[index].code;
+	return 0;
+}
+
 static struct v4l2_subdev_core_ops msm_sensor_subdev_core_ops = {
 	.ioctl = msm_sensor_subdev_ioctl,
 	.s_power = msm_sensor_power,
 };
 
+static struct v4l2_subdev_video_ops msm_sensor_subdev_video_ops = {
+	.enum_mbus_fmt = msm_sensor_v4l2_enum_fmt,
+};
+
 static struct v4l2_subdev_ops msm_sensor_subdev_ops = {
 	.core = &msm_sensor_subdev_core_ops,
+	.video  = &msm_sensor_subdev_video_ops,
 };
 
 static struct msm_sensor_fn_t msm_sensor_func_tbl = {

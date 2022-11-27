@@ -18,10 +18,6 @@
 
 
 #define ISP_SOF_DEBUG_COUNT 0
-#ifdef CONFIG_MSM_AVTIMER
-static struct avtimer_fptr_t avtimer_func;
-#endif
-
 static int msm_isp_update_dual_HW_ms_info_at_start(
 	struct vfe_device *vfe_dev,
 	enum msm_vfe_input_src stream_src,
@@ -114,8 +110,6 @@ void msm_isp_axi_destroy_stream(
 	if (axi_data->stream_info[stream_idx].state != AVAILABLE) {
 		axi_data->stream_info[stream_idx].state = AVAILABLE;
 		axi_data->stream_info[stream_idx].stream_handle = 0;
-    		memset(&axi_data->stream_info[stream_idx].request_queue_cmd,
-			0, sizeof(axi_data->stream_info[stream_idx].request_queue_cmd));
 	} else {
 		pr_err("%s: stream does not exist\n", __func__);
 	}
@@ -454,7 +448,7 @@ int msm_isp_axi_check_stream_state(
 	struct msm_vfe_axi_stream_cfg_cmd *stream_cfg_cmd)
 {
 	int rc = 0, i;
-	unsigned long flags = 0;
+	unsigned long flags;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
 	struct msm_vfe_axi_stream *stream_info;
 	enum msm_vfe_axi_state valid_state =
@@ -722,7 +716,6 @@ void msm_isp_update_framedrop_reg(struct vfe_device *vfe_dev,
 void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
 	struct msm_vfe_axi_stream *stream_info)
 {
-	uint32_t framedrop_period = 0;
 	stream_info->runtime_num_burst_capture = stream_info->num_burst_capture;
 
 	/**
@@ -731,15 +724,9 @@ void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
 	 *  by the request frame api
 	 */
 	if (!stream_info->controllable_output) {
-		framedrop_period =
+		stream_info->current_framedrop_period =
 			msm_isp_get_framedrop_period(
 			stream_info->frame_skip_pattern);
-		if (stream_info->frame_skip_pattern == SKIP_ALL)
-			stream_info->current_framedrop_period =
-				MSM_VFE_STREAM_STOP_PERIOD;
-		else
-			stream_info->current_framedrop_period =
-				framedrop_period;
 	}
 
 	msm_isp_cfg_framedrop_reg(vfe_dev, stream_info);
@@ -1211,35 +1198,10 @@ void msm_isp_calculate_bandwidth(
 }
 
 #ifdef CONFIG_MSM_AVTIMER
-/**
- * msm_isp_set_avtimer_fptr() - Set avtimer function pointer
- * @avtimer: struct of type avtimer_fptr_t to hold function pointer.
- *
- * Initialize the function pointers sent by the avtimer driver
- *
- */
-void msm_isp_set_avtimer_fptr(struct avtimer_fptr_t avtimer)
-{
-	avtimer_func.fptr_avtimer_open   = avtimer.fptr_avtimer_open;
-	avtimer_func.fptr_avtimer_enable = avtimer.fptr_avtimer_enable;
-	avtimer_func.fptr_avtimer_get_time = avtimer.fptr_avtimer_get_time;
-}
-EXPORT_SYMBOL(msm_isp_set_avtimer_fptr);
-
 void msm_isp_start_avtimer(void)
 {
-	if (avtimer_func.fptr_avtimer_open &&
-			avtimer_func.fptr_avtimer_enable) {
-		avtimer_func.fptr_avtimer_open();
-		avtimer_func.fptr_avtimer_enable(1);
-	}
-}
-
-void msm_isp_stop_avtimer(void)
-{
-	if (avtimer_func.fptr_avtimer_enable) {
-		avtimer_func.fptr_avtimer_enable(0);
-	}
+	avcs_core_open();
+	avcs_core_disable_power_collapse(1);
 }
 
 void msm_isp_get_avtimer_ts(
@@ -1249,21 +1211,19 @@ void msm_isp_get_avtimer_ts(
 	uint32_t avtimer_usec = 0;
 	uint64_t avtimer_tick = 0;
 
-	if (avtimer_func.fptr_avtimer_get_time) {
-		rc = avtimer_func.fptr_avtimer_get_time(&avtimer_tick);
-		if (rc < 0) {
-			pr_err("%s: Error: Invalid AVTimer Tick, rc=%d\n",
-				   __func__, rc);
-			/* In case of error return zero AVTimer Tick Value */
-			time_stamp->vt_time.tv_sec = 0;
-			time_stamp->vt_time.tv_usec = 0;
-		} else {
-			avtimer_usec = do_div(avtimer_tick, USEC_PER_SEC);
-			time_stamp->vt_time.tv_sec = (uint32_t)(avtimer_tick);
-			time_stamp->vt_time.tv_usec = avtimer_usec;
-			pr_debug("%s: AVTimer TS = %u:%u\n", __func__,
-				(uint32_t)(avtimer_tick), avtimer_usec);
-		}
+	rc = avcs_core_query_timer(&avtimer_tick);
+	if (rc < 0) {
+		pr_err("%s: Error: Invalid AVTimer Tick, rc=%d\n",
+			   __func__, rc);
+		/* In case of error return zero AVTimer Tick Value */
+		time_stamp->vt_time.tv_sec = 0;
+		time_stamp->vt_time.tv_usec = 0;
+	} else {
+		avtimer_usec = do_div(avtimer_tick, USEC_PER_SEC);
+		time_stamp->vt_time.tv_sec = (uint32_t)(avtimer_tick);
+		time_stamp->vt_time.tv_usec = avtimer_usec;
+		pr_debug("%s: AVTimer TS = %u:%u\n", __func__,
+			(uint32_t)(avtimer_tick), avtimer_usec);
 	}
 }
 #else
@@ -2376,18 +2336,10 @@ static void msm_isp_update_camif_output_count(
 /*Factor in Q2 format*/
 #define ISP_DEFAULT_FORMAT_FACTOR 6
 #define ISP_BUS_UTILIZATION_FACTOR 6
-
-#ifdef CONFIG_MACH_XIAOMI_C6
-static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
-#else
 int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev,
 	enum msm_vfe_hw_state hw_state)
-#endif
 {
-	int i, rc = 0;
-#ifndef CONFIG_MACH_XIAOMI_C6
-	int frame_src, ms_type;
-#endif
+	int i, rc = 0, frame_src, ms_type;
 	struct msm_vfe_axi_stream *stream_info;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
 	uint64_t total_pix_bandwidth = 0, total_rdi_bandwidth = 0;
@@ -2398,7 +2350,6 @@ int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev,
 
 	for (i = 0; i < VFE_AXI_SRC_MAX; i++) {
 		stream_info = &axi_data->stream_info[i];
-#ifndef CONFIG_MACH_XIAOMI_C6
 		frame_src = SRC_TO_INTF(stream_info->stream_src);
 		ms_type = vfe_dev->axi_data.src_info[frame_src].
 			dual_hw_ms_info.dual_hw_ms_type;
@@ -2407,7 +2358,6 @@ int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev,
 				ISP_VFE0 + vfe_dev->pdev->id, 0, 0);
 			return rc;
 		}
-#endif
 
 		if (stream_info->state == ACTIVE ||
 			stream_info->state == START_PENDING) {
@@ -3043,11 +2993,7 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 		}
 	}
 	mutex_unlock(&vfe_dev->buf_mgr->lock);
-#ifdef CONFIG_MACH_XIAOMI_C6
-	msm_isp_update_stream_bandwidth(vfe_dev);
-#else
 	msm_isp_update_stream_bandwidth(vfe_dev, stream_cfg_cmd->hw_state);
-#endif
 	vfe_dev->hw_info->vfe_ops.axi_ops.reload_wm(vfe_dev,
 		vfe_dev->vfe_base, wm_reload_mask);
 	msm_isp_update_camif_output_count(vfe_dev, stream_cfg_cmd);
@@ -3252,11 +3198,7 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	}
 
 	msm_isp_update_camif_output_count(vfe_dev, stream_cfg_cmd);
-#ifdef CONFIG_MACH_XIAOMI_C6
-        msm_isp_update_stream_bandwidth(vfe_dev);
-#else
-        msm_isp_update_stream_bandwidth(vfe_dev, stream_cfg_cmd->hw_state);
-#endif
+	msm_isp_update_stream_bandwidth(vfe_dev, stream_cfg_cmd->hw_state);
 
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
 		stream_info = &axi_data->stream_info[
@@ -3289,7 +3231,7 @@ int msm_isp_cfg_axi_stream(struct vfe_device *vfe_dev, void *arg)
 	int rc = 0, ret;
 	struct msm_vfe_axi_stream_cfg_cmd *stream_cfg_cmd = arg;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-	enum msm_isp_camif_update_state camif_update = NO_UPDATE;
+	enum msm_isp_camif_update_state camif_update;
 	int halt = 0;
 
 	rc = msm_isp_axi_check_stream_state(vfe_dev, stream_cfg_cmd);
@@ -3532,9 +3474,6 @@ static int msm_isp_request_frame(struct vfe_device *vfe_dev,
 			stream_info->undelivered_request_cnt--;
 			pr_err_ratelimited("%s:%d fail to cfg HAL buffer\n",
 				__func__, __LINE__);
-			queue_req->cmd_used = 0;
-			list_del(&queue_req->list);
-			stream_info->request_q_cnt--;
 			return rc;
 		}
 
@@ -3581,9 +3520,6 @@ static int msm_isp_request_frame(struct vfe_device *vfe_dev,
 						flags);
 			pr_err_ratelimited("%s:%d fail to cfg HAL buffer\n",
 				__func__, __LINE__);
-			queue_req->cmd_used = 0;
-			list_del(&queue_req->list);
-			stream_info->request_q_cnt--;
 			return rc;
 		}
 	} else {
