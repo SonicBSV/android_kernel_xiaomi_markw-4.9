@@ -51,19 +51,6 @@
 
 	qcom,pmi8950@2 {
         /delete-node/ qcom,leds@a100;
-		pmi8950_gpios: gpios {
-			pinctrl-names = "default";
-			pinctrl-0 = <&pwm_ir_default>;
-
-			pwm_ir_default: pmi8950_gpio1 {
-				status = "okay";
-				pins = "gpio1";
-				output-low;
-				bias-pull-down;
-				function = "func1";
-				qcom,drive-strength = <PMIC_GPIO_STRENGTH_MED>;
-		        };
-		};
         };
     qcom,pmi8950@3 {
 		labibb: qpnp-labibb-regulator {
@@ -194,9 +181,9 @@
 };
 
 &soc {
-    sn_fuse: snfuse@0xa0128 {
+	sn_fuse: snfuse@0xa0128 {
 		compatible = "qcom,sn-fuse";
-		reg = <0xa4128 0x4>;
+		reg = <0xa0128 0x4>;
 		reg-names = "sn-base";
 	};
 
@@ -262,11 +249,19 @@
 
 	/delete-node/ qseecom@85b00000;
 
-	pwm_ir {
-		compatible = "pwm-ir";
-		pwms = <&pmi8950_pwm 0 0>;
-		reg-id = "vdd";
-		vdd-supply = <&pm8953_l8>;
+	gpio-leds {
+		compatible = "gpio-leds";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_led_off>;
+
+			infred {
+			gpios = <&tlmm 45 0>;
+			label = "infrared";
+			linux,default-trigger = "infra-red";
+			default-state = "off";
+			retain-state-suspended;
+		};
 	};
 
 	fpc1020 {
@@ -291,12 +286,12 @@
 		/*For SPI Clock Handled by Linux*/
 		clock-names = "iface_clk", "core_clk";
 		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-			<&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
+		<&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
 
 		pinctrl-names = "fpc1020_spi_active",
-				"fpc1020_reset_reset",
-				"fpc1020_reset_active",
-				"fpc1020_irq_active";
+			"fpc1020_reset_reset",
+			"fpc1020_reset_active",
+			"fpc1020_irq_active";
 
 		pinctrl-0 = <&fpc_spi_active>;
 		pinctrl-1 = <&fpc_reset_reset>;
