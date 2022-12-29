@@ -1702,6 +1702,7 @@ static struct platform_driver mdss_fb_driver = {
 		.name = "mdss_fb",
 		.of_match_table = mdss_fb_dt_match,
 		.pm = &mdss_fb_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
@@ -1843,7 +1844,7 @@ static int mdss_fb_start_disp_thread(struct msm_fb_data_type *mfd)
 	mdss_fb_get_split(mfd);
 
 	atomic_set(&mfd->commits_pending, 0);
-	mfd->disp_thread = kthread_run(__mdss_fb_display_thread,
+	mfd->disp_thread = kthread_run_perf_critical(__mdss_fb_display_thread,
 				mfd, "mdss_fb%d", mfd->index);
 
 	if (IS_ERR(mfd->disp_thread)) {

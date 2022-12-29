@@ -65,7 +65,6 @@ enum kgsl_event_results {
 	KGSL_EVENT_CANCELLED = 2,
 };
 
-#define KGSL_FLAG_WAKE_ON_TOUCH BIT(0)
 #define KGSL_FLAG_SPARSE        BIT(1)
 
 /*
@@ -280,11 +279,6 @@ struct kgsl_device {
 	struct timer_list idle_timer;
 	struct kgsl_pwrctrl pwrctrl;
 	int open_count;
-
-	/* For GPU inline submission */
-	uint32_t submit_now;
-	spinlock_t submit_lock;
-	bool slumber;
 
 	struct mutex mutex;
 	uint32_t state;
@@ -722,10 +716,13 @@ void kgsl_device_platform_remove(struct kgsl_device *device);
 
 const char *kgsl_pwrstate_to_str(unsigned int state);
 
-int kgsl_device_snapshot_init(struct kgsl_device *device);
-void kgsl_device_snapshot(struct kgsl_device *device,
-			struct kgsl_context *context, bool gmu_fault);
-void kgsl_device_snapshot_close(struct kgsl_device *device);
+static inline int kgsl_device_snapshot_init(struct kgsl_device *device)
+{
+	return 0;
+}
+static inline void kgsl_device_snapshot(struct kgsl_device *device,
+			struct kgsl_context *context, bool gmu_fault) {}
+static inline void kgsl_device_snapshot_close(struct kgsl_device *device) {}
 
 void kgsl_events_init(void);
 void kgsl_events_exit(void);

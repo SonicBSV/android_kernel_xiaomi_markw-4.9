@@ -125,6 +125,25 @@ static int kgsl_pool_size_total(void)
 	return total;
 }
 
+/* Returns the total number of pages in all pools excluding reserved pages */
+static unsigned long kgsl_pool_size_nonreserved(void)
+{
+	int i;
+	unsigned long total = 0;
+
+	for (i = 0; i < kgsl_num_pools; i++) {
+		struct kgsl_page_pool *pool = &kgsl_pools[i];
+
+		spin_lock(&pool->list_lock);
+		if (atomic_read(&pool->page_count) > pool->reserved_pages)
+			total += (atomic_read(&pool->page_count) - pool->reserved_pages) *
+					(1 << pool->pool_order);
+		spin_unlock(&pool->list_lock);
+	}
+
+	return total;
+}
+
 /*
  * This will shrink the specified pool by num_pages or its pool_size,
  * whichever is smaller.
@@ -427,7 +446,7 @@ bool kgsl_pool_avaialable(int page_size)
 		return true;
 
 	for (i = 0; i < kgsl_num_pools; i++)
-		if (ilog2(page_size >> PAGE_SHIFT) == kgsl_pools[i].pool_order)
+		if (get_order(page_size) == kgsl_pools[i].pool_order)
 			return true;
 
 	return false;
@@ -460,20 +479,27 @@ kgsl_pool_shrink_scan_objects(struct shrinker *shrinker,
 	/* nr represents number of pages to be removed*/
 	int nr = sc->nr_to_scan;
 	int total_pages = kgsl_pool_size_total();
+	unsigned long ret;
 
 	/* Target pages represents new  pool size */
 	int target_pages = (nr > total_pages) ? 0 : (total_pages - nr);
 
 	/* Reduce pool size to target_pages */
-	return kgsl_pool_reduce(target_pages, false);
+	ret = kgsl_pool_reduce(target_pages, false);
+
+	/* If we are unable to shrink more, stop trying */
+	return (ret == 0) ? SHRINK_STOP : ret;
 }
 
 static unsigned long
 kgsl_pool_shrink_count_objects(struct shrinker *shrinker,
 					struct shrink_control *sc)
 {
-	/* Return total pool size as everything in pool can be freed */
-	return kgsl_pool_size_total();
+	/*
+	 * Return non-reserved pool size as we don't
+	 * want shrinker to free reserved pages.
+	 */
+	return kgsl_pool_size_nonreserved();
 }
 
 /* Shrinker callback data*/
@@ -530,7 +556,7 @@ static void kgsl_of_parse_mempools(struct device_node *node)
 		allocation_allowed = of_property_read_bool(child,
 				"qcom,mempool-allocate");
 
-		kgsl_pool_config(ilog2(page_size >> PAGE_SHIFT), reserved_pages,
+		kgsl_pool_config(get_order(page_size), reserved_pages,
 				allocation_allowed);
 	}
 }

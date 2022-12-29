@@ -90,6 +90,8 @@ static void adreno_ringbuffer_wptr(struct adreno_device *adreno_dev,
 		struct adreno_ringbuffer *rb)
 {
 	unsigned long flags;
+	bool write = false;
+	unsigned int val;
 	int ret = 0;
 
 	spin_lock_irqsave(&rb->preempt_lock, flags);
@@ -102,19 +104,21 @@ static void adreno_ringbuffer_wptr(struct adreno_device *adreno_dev,
 			 */
 			kgsl_pwrscale_busy(KGSL_DEVICE(adreno_dev));
 
-			/*
-			 * Ensure the write posted after a possible
-			 * GMU wakeup (write could have dropped during wakeup)
-			 */
-			ret = adreno_gmu_fenced_write(adreno_dev,
-				ADRENO_REG_CP_RB_WPTR, rb->_wptr,
-				FENCE_STATUS_WRITEDROPPED0_MASK);
-
+			write = true;
+			val = rb->_wptr;
 		}
 	}
 
 	rb->wptr = rb->_wptr;
 	spin_unlock_irqrestore(&rb->preempt_lock, flags);
+
+	/*
+	 * Ensure the write posted after a possible
+	 * GMU wakeup (write could have dropped during wakeup)
+	 */
+	if (write)
+		ret = adreno_gmu_fenced_write(adreno_dev, ADRENO_REG_CP_RB_WPTR,
+			rb->_wptr, FENCE_STATUS_WRITEDROPPED0_MASK);
 
 	if (ret) {
 		/* If WPTR update fails, set the fault and trigger recovery */
@@ -928,6 +932,7 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 	struct kgsl_memobj_node *ib;
 	unsigned int numibs = 0;
 	unsigned int *link;
+	unsigned int link_onstack[SZ_256] __aligned(8);
 	unsigned int *cmds;
 	struct kgsl_context *context;
 	struct adreno_context *drawctxt;
@@ -1062,10 +1067,15 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 	if (gpudev->ccu_invalidate)
 		dwords += 4;
 
-	link = kcalloc(dwords, sizeof(unsigned int), GFP_KERNEL);
-	if (!link) {
-		ret = -ENOMEM;
-		goto done;
+	if (likely(dwords <= ARRAY_SIZE(link_onstack))) {
+		memset(link_onstack, 0, dwords * sizeof(unsigned int));
+		link = link_onstack;
+	} else {
+		link = kcalloc(dwords, sizeof(unsigned int), GFP_KERNEL);
+		if (!link) {
+			ret = -ENOMEM;
+			goto done;
+		}
 	}
 
 	cmds = link;
@@ -1193,7 +1203,8 @@ done:
 	trace_kgsl_issueibcmds(device, context->id, numibs, drawobj->timestamp,
 			drawobj->flags, ret, drawctxt->type);
 
-	kfree(link);
+	if (unlikely(link != link_onstack))
+		kfree(link);
 	return ret;
 }
 
