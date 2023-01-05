@@ -75,7 +75,7 @@ static struct gf_key_map key_map[] = {
 	{  "LEFT" ,  KEY_LEFT   },
 	{  "RIGHT",  KEY_RIGHT  },
 	{  "CAMERA", KEY_CAMERA },
-	{  "ENTER",  KEY_SELECT},
+	{  "ENTER",  KEY_SELECT },
 	{  "FORCE",  KEY_F9     },
 	{  "CLICK",  KEY_F19    },
 };
@@ -137,7 +137,7 @@ static long spi_clk_max_rate(struct clk *clk, unsigned long rate)
 	if (cur == rate)
 		return rate;
 
-	/* if we got here then: cur > rate */
+
 	lowest_available = clk_round_rate(clk, 0);
 	if (lowest_available > rate)
 		return -EINVAL;
@@ -151,12 +151,9 @@ static long spi_clk_max_rate(struct clk *clk, unsigned long rate)
 
 		if ((cur < rate) && (cur > nearest_low))
 			nearest_low = cur;
-		/*
-		 * if we stepped too far, then start stepping in the other
-		 * direction with half the step size
-		 */
+
 		if (((cur > rate) && (step_direction > 0))
-			 || ((cur < rate) && (step_direction < 0))) {
+				|| ((cur < rate) && (step_direction < 0))) {
 			step_direction = -step_direction;
 			step_size >>= 1;
 		}
@@ -276,11 +273,11 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
 		retval =
-			 !access_ok(VERIFY_WRITE, (void __user *)arg,
-			 _IOC_SIZE(cmd));
+				!access_ok(VERIFY_WRITE, (void __user *)arg,
+				_IOC_SIZE(cmd));
 	if ((retval == 0) && (_IOC_DIR(cmd) & _IOC_WRITE))
 		retval =
-			 !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+				!access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
 	if (retval)
 		return -EFAULT;
 
@@ -313,6 +310,8 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (speed > 12 * 1000 * 1000) {
 				pr_warn("Set speed:%d is larger than 12Mbps.\n",	speed);
 			} else {
+
+
 				spi_clock_set(gf_dev, speed);
 			}
 		} else {
@@ -332,7 +331,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case GF_IOC_SENDKEY:
 		if (copy_from_user
-			 (&gf_key, (struct gf_key *)arg, sizeof(struct gf_key))) {
+		(&gf_key, (struct gf_key *)arg, sizeof(struct gf_key))) {
 			pr_warn("Failed to copy data from user space.\n");
 			retval = -EFAULT;
 			break;
@@ -343,14 +342,16 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				if (KEY_CAMERA == gf_key.key)  {
 					input_report_key(gf_dev->input, KEY_SELECT, gf_key.value);
 					input_sync(gf_dev->input);
+
+
 				} else {
 					input_report_key(gf_dev->input, gf_key.key, gf_key.value);
 					input_sync(gf_dev->input);
+
 				}
 				break;
 			}
 		}
-
 		if (i == ARRAY_SIZE(key_map)) {
 			pr_warn("key %d not support yet \n", gf_key.key);
 			retval = -EFAULT;
@@ -409,6 +410,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 {
 
 #if defined(GF_NETLINK_ENABLE)
+
 	struct gf_dev *gf_dev = &gf;
 	char temp = GF_NET_EVENT_IRQ;
 	gf_dbg("enter irq %s\n", __func__);
@@ -417,6 +419,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 
 	sendnlmsg(&temp);
 #elif defined (GF_FASYNC)
+
 	struct gf_dev *gf_dev = &gf;
 	if (gf_dev->async)
 		kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
@@ -439,11 +442,11 @@ static int driver_init_partial(struct gf_dev *gf_dev)
 
 	gf_dev->irq = gf_irq_num(gf_dev);
 	ret = devm_request_threaded_irq(&gf_dev->spi->dev,
-			gf_dev->irq,
-			NULL,
-			gf_irq,
-			IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-			"gf", gf_dev);
+					gf_dev->irq,
+					NULL,
+					gf_irq,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					"gf", gf_dev);
 	if (ret) {
 		pr_err("Could not request irq %d\n", gpio_to_irq(gf_dev->irq_gpio));
 		goto error;
@@ -452,6 +455,7 @@ static int driver_init_partial(struct gf_dev *gf_dev)
 		gf_enable_irq(gf_dev);
 		gf_disable_irq(gf_dev);
 	}
+
 	gf_hw_reset(gf_dev, 360);
 
 	FUNC_EXIT();
@@ -489,8 +493,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 			filp->private_data = gf_dev;
 			nonseekable_open(inode, filp);
 			gf_dbg("Succeed to open device. irq = %d\n",
-					gf_dev->irq);
-
+							gf_dev->irq);
 			gf_dev->device_available = 1;
 		}
 	} else {
@@ -528,17 +531,14 @@ static int gf_release(struct inode *inode, struct file *filp)
 	gf_dev->users--;
 	if (!gf_dev->users) {
 
-	gf_dbg("disble_irq. irq = %d\n", gf_dev->irq);
-	gf_disable_irq(gf_dev);
+		gf_dbg("disble_irq. irq = %d\n", gf_dev->irq);
+		gf_disable_irq(gf_dev);
 
+		devm_free_irq(&gf_dev->spi->dev, gf_dev->irq, gf_dev);
 
-
-
-	devm_free_irq(&gf_dev->spi->dev, gf_dev->irq, gf_dev);
-
-/*power off the sensor*/
-	gf_dev->device_available = 0;
-	gf_power_off(gf_dev);
+		/*power off the sensor*/
+		gf_dev->device_available = 0;
+		gf_power_off(gf_dev);
 	}
 	mutex_unlock(&device_list_lock);
 	FUNC_EXIT();
@@ -569,8 +569,9 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 	struct gf_dev *gf_dev = NULL;
 	struct fb_event *evdata = NULL;
 	unsigned int blank;
+
 #if defined(GF_NETLINK_ENABLE)
-		char temp = 0;
+	char temp = 0;
 #endif
 
 	if (val != FB_EARLY_EVENT_BLANK)
@@ -590,7 +591,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 #elif defined (GF_FASYNC)
 				if (gf_dev->async) {
 					kill_fasync(&gf_dev->async, SIGIO,
-					POLL_IN);
+						POLL_IN);
 				}
 #endif
 			}
@@ -719,6 +720,9 @@ static int gf_probe(struct platform_device *pdev)
 		gf_reg_key_kernel(gf_dev);
 
 		wakeup_source_init(&gf_dev->ttw_wl, "goodix_ttw_wl");
+
+
+
 	}
 
 	pr_warn("--------gf_probe end---OK.--------\n");
@@ -774,7 +778,7 @@ static int gf_remove(struct platform_device *pdev)
 	if (gf_dev->users == 0)
 		kfree(gf_dev);
 
-		 mutex_unlock(&device_list_lock);
+	mutex_unlock(&device_list_lock);
 
 	wakeup_source_trash(&gf_dev->ttw_wl);
 
@@ -788,8 +792,6 @@ static int gf_suspend(struct spi_device *spi, pm_message_t mesg)
 static int gf_suspend(struct platform_device *pdev, pm_message_t state)
 #endif
 {
-
-
 	gf_dbg("gf_suspend_test.\n");
 	return 0;
 }
@@ -800,7 +802,6 @@ static int gf_resume(struct spi_device *spi)
 static int gf_resume(struct platform_device *pdev)
 #endif
 {
-
 	gf_dbg("gf_resume_test.\n");
 	return 0;
 }
@@ -816,13 +817,13 @@ static struct spi_driver gf_driver = {
 static struct platform_driver gf_driver = {
 #endif
 	.driver = {
-		   .name = GF_DEV_NAME,
-		   .owner = THIS_MODULE,
+		.name = GF_DEV_NAME,
+		.owner = THIS_MODULE,
 #if defined(USE_SPI_BUS)
 
 #endif
-		   .of_match_table = gx_match_table,
-		   },
+		.of_match_table = gx_match_table,
+		},
 	.probe = gf_probe,
 	.remove = gf_remove,
 	.suspend = gf_suspend,
@@ -832,7 +833,7 @@ static struct platform_driver gf_driver = {
 static int __init gf_init(void)
 {
 	int status;
-        FUNC_ENTRY();
+	FUNC_ENTRY();
 
 	pr_warn("--------gf_init start.--------\n");
 	/* Claim our 256 reserved device numbers.  Then register a class

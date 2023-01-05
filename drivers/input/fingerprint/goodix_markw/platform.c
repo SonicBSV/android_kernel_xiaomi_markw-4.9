@@ -59,26 +59,26 @@ static int select_pin_ctl(struct gf_dev *gf_dev, const char *name)
 	}
 	rc = -EINVAL;
 	dev_err(dev, "%s:'%s' not found\n", __func__, name);
-	exit:
+exit:
 	return rc;
 }
 
 
-/*GPIO pins reference.*/
+
 int gf_parse_dts(struct gf_dev *gf_dev)
 {
 	int rc = 0;
 	int i = 0;
 	pr_warn("--------gf_parse_dts start.--------\n");
 
-	/*get reset resource*/
+
 	rc = gf3208_request_named_gpio(gf_dev, "goodix,gpio_reset", &gf_dev->reset_gpio);
 	if (rc) {
 		gf_dbg("Failed to request RESET GPIO. rc = %d\n", rc);
 		return -EPERM;
 	}
 
-	/*get irq resourece*/
+
 	rc = gf3208_request_named_gpio(gf_dev, "goodix,gpio_irq", &gf_dev->irq_gpio);
 	if (rc) {
 
@@ -137,7 +137,6 @@ void gf_cleanup(struct gf_dev	*gf_dev)
 	}
 }
 
-/*power management*/
 int gf_power_on(struct gf_dev *gf_dev)
 {
 	int rc = 0;
@@ -170,7 +169,7 @@ static int hw_reset(struct  gf_dev *gf_dev)
 
 	irq_gpio = gpio_get_value(gf_dev->irq_gpio);
 	dev_info(dev, "IRQ after reset %d\n", irq_gpio);
-	exit:
+exit:
 	return rc;
 }
 

@@ -55,6 +55,7 @@
 #define NUM_PARAMS_REG_ENABLE_SET 2
 
 static const char * const pctl_names[] = {
+
 	"fpc1020_reset_reset",
 	"fpc1020_reset_active",
 	"fpc1020_irq_active",
@@ -397,7 +398,7 @@ static ssize_t compatible_all_set(struct device *dev,
 		if (rc) {
 			dev_err(dev, "could not request irq %d\n",
 				gpio_to_irq(fpc1020->irq_gpio));
-		goto exit;
+			goto exit;
 		}
 		dev_dbg(dev, "requested irq %d\n", gpio_to_irq(fpc1020->irq_gpio));
 
@@ -408,9 +409,9 @@ static ssize_t compatible_all_set(struct device *dev,
 			dev_info(dev, "Enabling hardware\n");
 			(void)device_prepare(fpc1020, true);
 #ifdef LINUX_CONTROL_SPI_CLK
-		(void)set_clks(fpc1020, false);
+			(void)set_clks(fpc1020, false);
 #endif
-	}
+		}
 	} else if (!strncmp(buf, "disable", strlen("disable")) && fpc1020->compatible_enabled != 0) {
 		if (gpio_is_valid(fpc1020->irq_gpio)) {
 			devm_gpio_free(dev, fpc1020->irq_gpio);
@@ -540,7 +541,6 @@ static int fpc1020_probe(struct platform_device *pdev)
 #endif
 
 	mutex_init(&fpc1020->lock);
-
 	wakeup_source_init(&fpc1020->ttw_wl, "fpc_ttw_wl");
 
 	rc = sysfs_create_group(&dev->kobj, &attribute_group);
@@ -564,6 +564,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 	soc_kobj = &dev->parent->kobj;
 	soc_node = soc_kobj->sd;
 	kernfs_get(soc_node);
+
 	soc_symlink = kernfs_create_link(devices_node, kobject_name(soc_kobj), soc_node);
 	kernfs_put(soc_node);
 	if(IS_ERR(soc_symlink)) {
@@ -637,8 +638,6 @@ static struct platform_driver fpc1020_driver = {
 static int __init fpc1020_init(void)
 {
 	int rc;
-
-		return -ENODEV;
 
 	rc = platform_driver_register(&fpc1020_driver);
 	if (!rc)
