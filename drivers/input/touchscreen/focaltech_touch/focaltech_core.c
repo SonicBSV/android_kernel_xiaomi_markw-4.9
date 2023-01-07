@@ -1151,7 +1151,7 @@ static int fts_ts_probe(struct i2c_client *client,
 	err = fts_gpio_configure(data);
 	if (err < 0) {
 		FTS_ERROR("[GPIO]Failed to configure the gpios");
-		goto free_gpio;
+		goto free_input;
 	}
 
 	fts_reset_proc(200);
@@ -1233,6 +1233,10 @@ free_gpio:
 		gpio_free(pdata->reset_gpio);
 	if (gpio_is_valid(pdata->irq_gpio))
 		gpio_free(pdata->irq_gpio);
+free_input:
+	input_unregister_device(data->input_dev);
+	i2c_set_clientdata(client, NULL);
+
 	return err;
 
 }
