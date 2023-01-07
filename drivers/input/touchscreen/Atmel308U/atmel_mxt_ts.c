@@ -6143,6 +6143,8 @@ static int mxt_probe(struct i2c_client *client,
 		CTP_DEBUG("step 4 : test IC I2C.");
 	/* Initialize i2c device */
 	error = mxt_initialize(data);
+	if (error)
+		goto err_clear_i2c_clientdata;
 
 	CTP_DEBUG("step 5 : register input device.");
 	error = mxt_initialize_input_device(data);
@@ -6245,9 +6247,10 @@ err_free_irq:
 err_free_input_device:
 	input_unregister_device(data->input_dev);
 err_free_object:
-	i2c_set_clientdata(data->client, NULL);
 	kfree(data->msg_buf);
 	kfree(data->object_table);
+err_clear_i2c_clientdata:
+	i2c_set_clientdata(data->client, NULL);
 err_reset_gpio_req:
 	if (gpio_is_valid(pdata->reset_gpio))
 		gpio_free(pdata->reset_gpio);
