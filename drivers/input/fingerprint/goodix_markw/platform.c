@@ -16,8 +16,8 @@
 #endif
 
 #define gf_dbg(fmt, args...) do { \
-					pr_warn("gf:" fmt, ##args);\
-		} while (0)
+	pr_warn("gf:" fmt, ##args);\
+} while (0)
 
 
 static int gf3208_request_named_gpio(struct gf_dev *gf_dev, const char *label, int *gpio)
@@ -59,7 +59,7 @@ static int select_pin_ctl(struct gf_dev *gf_dev, const char *name)
 	}
 	rc = -EINVAL;
 	dev_err(dev, "%s:'%s' not found\n", __func__, name);
-exit:
+	exit:
 	return rc;
 }
 
@@ -161,7 +161,7 @@ static int hw_reset(struct  gf_dev *gf_dev)
 	int rc = select_pin_ctl(gf_dev, "goodixfp_reset_reset");
 	if (rc)
 		goto exit;
-	usleep_range(3000, 4000);
+	mdelay(3);
 
 	rc = select_pin_ctl(gf_dev, "goodixfp_reset_active");
 	if (rc)
@@ -185,7 +185,7 @@ int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 		return -EPERM;
 	}
 	hw_reset(gf_dev);
-	usleep_range(delay_ms*1000, delay_ms*1100);
+	mdelay(delay_ms);
 	return 0;
 }
 

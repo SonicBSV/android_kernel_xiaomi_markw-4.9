@@ -31,8 +31,9 @@ void sendnlmsg(char *message)
 	if (!message || !nl_sk)
 		return ;
 	skb_1 = alloc_skb(len, GFP_KERNEL);
-	if (!skb_1)
+	if (!skb_1) {
 		printk(KERN_ERR "my_net_link:alloc_skb_1 error\n");
+	}
 	slen = strlen(message);
 	nlh = nlmsg_put(skb_1, 0, 0, 0, MAX_MSGSIZE, 0);
 
