@@ -3135,6 +3135,7 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
 		filter &= ~SHOW_MEM_FILTER_NODES;
 
 	show_mem(filter);
+	show_mem_call_notifiers();
 }
 
 void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
