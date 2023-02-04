@@ -2087,6 +2087,8 @@ struct task_struct *fork_idle(int cpu)
 	return task;
 }
 
+extern int kp_active_mode(void);
+
 /*
  *  Ok, this is the main fork-routine.
  *
@@ -2103,9 +2105,28 @@ long _do_fork(unsigned long clone_flags,
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
+	unsigned int period = 30;
+
+	switch (kp_active_mode()) {
+	case 0: /* Use balance mode's boost period */
+	case 2:
+		/* Boost for 50 ms when balance mode is active */
+		period = 50;
+		break;
+	case 3:
+		/* Boost for 100 ms when performance mode is active */
+		period = 100;
+		break;
+	}
 
 	/* Boost CPU to the max for 1250 ms when userspace launches an app */
 		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 1250);
+
+#ifdef CONFIG_CPU_INPUT_BOOST
+	/* Boost CPU to the max when userspace launches an app */
+	if (task_is_zygote(current))
+		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, period);
+#endif
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When
