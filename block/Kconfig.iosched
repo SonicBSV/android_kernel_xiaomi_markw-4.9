@@ -31,6 +31,14 @@ config IOSCHED_CFQ
 	  and server systems.
 
 	  This is the default I/O scheduler.
+	  
+config IOSCHED_ANXIETY
+	tristate "Anxiety I/O scheduler"
+	default y
+	---help---
+          The Anxiety I/O scheduler prioritizes latency over everything
+          else. When a request comes in, it will use a lighweight
+          selection algorithm to swiftly process the current pending task.
 
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"
@@ -60,7 +68,7 @@ config BFQ_GROUP_IOSCHED
 
 choice
 	prompt "Default I/O scheduler"
-	default DEFAULT_CFQ
+	default DEFAULT_ANXIETY
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
@@ -83,7 +91,9 @@ choice
 
 	config DEFAULT_NOOP
 		bool "No-op"
-
+		
+	config DEFAULT_ANXIETY
+		bool "Anxiety" if IOSCHED_ANXIETY=y
 endchoice
 
 config DEFAULT_IOSCHED
@@ -92,6 +102,7 @@ config DEFAULT_IOSCHED
 	default "cfq" if DEFAULT_CFQ
 	default "bfq" if DEFAULT_BFQ
 	default "noop" if DEFAULT_NOOP
+	default "anxiety" if DEFAULT_ANXIETY
 
 endmenu
 
