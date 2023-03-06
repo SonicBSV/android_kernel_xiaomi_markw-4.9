@@ -1,0 +1,78 @@
+/*
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&clock_cpu {
+	qcom,speed2-bin-v0-cl =
+		<          0 0>,
+		<  652800000 1>,
+		< 1036800000 2>,
+		< 1401600000 3>,
+		< 1689600000 4>,
+		< 1804800000 5>,
+		< 1958400000 6>,
+		< 2016000000 7>;
+	qcom,speed2-bin-v0-cci =
+		<          0 0>,
+		<  261120000 1>,
+		<  414720000 2>,
+		<  560640000 3>,
+		<  675840000 4>,
+		<  721920000 5>,
+		<  783360000 6>,
+		<  806400000 7>;
+};
+
+&cpubw {
+	qcom,bw-tbl =
+		<   769 /*  100.8 MHz */ >,
+		<  1611 /*  211.2 MHz */ >,
+		<  2124 /*  278.4 MHz */ >,
+		<  2929 /*  384   MHz */ >,
+		<  3221 /*  422.4 MHz */ >,
+		<  4248 /*  556.8 MHz */ >,
+		<  5126 /*  672   MHz */ >,
+		<  5859 /*  768   MHz */ >,
+		<  6152 /*  806.4 MHz */ >,
+		<  6445 /*  844.8 MHz */ >,
+		<  7104 /*  931.2 MHz */ >,
+		<  7759 /*  1017.0 MHz */ >,
+		<  9887 /*  1296.0 MHz */ >;
+};
+
+&soc {
+	devfreq-cpufreq {
+		cpubw-cpufreq {
+			cpu-to-dev-map =
+				<  652800  1611>,
+				< 1036800  3221>,
+				< 1401600  5859>,
+				< 1689600  6445>,
+				< 1804800  7104>,
+				< 1958400  7759>,
+				< 2016000  9887>;
+		};
+		mincpubw-cpufreq {
+			cpu-to-dev-map =
+				< 1036800 1611 >,
+				< 1401600 3221 >,
+				< 2016000 6445 >;
+		};
+	};
+};
+
+&mincpubw_compute {
+	qcom,core-dev-table =
+		< 1036800 1611 >,
+		< 1401600 3221 >,
+		< 2016000 6445 >;
+};
