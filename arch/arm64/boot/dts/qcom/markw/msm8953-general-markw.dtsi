@@ -100,6 +100,7 @@
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,float-voltage-mv = <4400>;
 	qcom,resume-delta-mv = <50>;
+        qcom,chg-inhibit-fg;
 	qcom,thermal-mitigation = <2000 1200 1000 800 800>;
 	qcom,charge-unknown-battery;
 	/delete-property/ qcom,parallel-usb-min-current-ma;
@@ -112,7 +113,10 @@
 };
 
 &qpnp_fg {
+        qcom,battery-data = <&qrd_batterydata>;
 	qcom,resume-soc = <99>;
+	qcom,fg-iterm-ma = <150>;
+	qcom,fg-chg-iterm-ma = <100>;
 	qcom,fg-cutoff-voltage-mv = <3400>;
 	qcom,fg-cc-cv-threshold-mv = <4390>;
 	qcom,fg-vbat-estimate-diff-mv = <3200>;
@@ -123,6 +127,8 @@
 	qcom,cl-max-increment-deciperc = <1>;
 	qcom,cl-max-decrement-deciperc = <1>;
 	qcom,fg-delta-soc = <1>;
+        qcom,bad-battery-detection-enable;
+	qcom,hold-soc-while-full;
 	qcom,thermal-coefficients = [c2 86 bb 50 cf 37];
 };
 
