@@ -21,6 +21,15 @@ config IOSCHED_DEADLINE
 	  a new point in the service tree and doing a batch of IO from there
 	  in case of expiry.
 
+config IOSCHED_MAPLE
+	tristate "Maple I/O scheduler"
+	default y
+	---help---
+	  Maple uses a first come first serve style algorithm with seperated 
+	  read/write handling to allow for read biases. By prioritizing reads, 
+	  simple tasks should improve in performance. Maple also uses hooks for the
+	  powersuspend driver to increase expirations when power is suspended to decrease workload.
+
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
 	default y
@@ -31,6 +40,13 @@ config IOSCHED_CFQ
 	  and server systems.
 
 	  This is the default I/O scheduler.
+
+config IOSCHED_ZEN
+	tristate "Zen I/O scheduler"
+	default n
+	---help---
+	FCFS, dispatches are back-inserted, deadlines ensure fairness.
+        Should work best with devices where there is no travel delay.
 	  
 config IOSCHED_ANXIETY
 	tristate "Anxiety I/O scheduler"
@@ -94,6 +110,13 @@ choice
 		
 	config DEFAULT_ANXIETY
 		bool "Anxiety" if IOSCHED_ANXIETY=y
+		
+	config DEFAULT_MAPLE
+	    bool "maple" if IOSCHED_MAPLE=y
+	    
+	config DEFAULT_ZEN
+		bool "ZEN" if IOSCHED_ZEN=y    
+	
 endchoice
 
 config DEFAULT_IOSCHED
@@ -103,6 +126,8 @@ config DEFAULT_IOSCHED
 	default "bfq" if DEFAULT_BFQ
 	default "noop" if DEFAULT_NOOP
 	default "anxiety" if DEFAULT_ANXIETY
+	default "maple" if DEFAULT_MAPLE
+	default "zen" if DEFAULT_ZEN
 
 endmenu
 
