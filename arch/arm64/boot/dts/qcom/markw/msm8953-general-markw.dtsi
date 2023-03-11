@@ -443,12 +443,6 @@
 	};
 };
 
-&soc {
-	gpio_keys {
-		/delete-node/ home;
-	};
-};
-
 &gpio_key_active {
 	mux {
 		pins = "gpio85", "gpio86", "gpio87";
