@@ -93,9 +93,9 @@
 		/* Bus Scale Settings */
 		qcom,gpubw-dev = <&gpubw>;
 		qcom,bus-control;
-		qcom,bus-width = <24>;
+		qcom,bus-width = <16>;
 		qcom,msm-bus,name = "grp3d";
-		qcom,msm-bus,num-cases = <12>;
+		qcom,msm-bus,num-cases = <11>;
 		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
 				<26 512 0 0>,	     /*  off          */
