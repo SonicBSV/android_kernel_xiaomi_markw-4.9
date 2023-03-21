@@ -96,7 +96,7 @@
 		qcom,bus-width = <24>;
 		qcom,msm-bus,name = "grp3d";
 		qcom,msm-bus,num-cases = <12>;
-		qcom,msm-bus,num-paths = <1;
+		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
 				<26 512 0 0>,	     /*  off          */
 				<26 512 0 1689600>, /* 1. 211.20 MHz */
