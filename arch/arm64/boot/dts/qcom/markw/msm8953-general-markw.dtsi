@@ -144,15 +144,11 @@
 	qcom,current = <750>;
 };
 
-&pmi8950_torch0 {
-	qcom,current = <100>;
-};
-
 &pmi8950_torch1 {
 	qcom,current = <100>;
 };
 
-&pmi8950_torch2 {
+&pmi8950_torch0 {
     qcom,led-name = "flashlight";
 	qcom,current = <100>;
 };
@@ -311,8 +307,9 @@
 };
 
 &led_flash0 {
+        /delete-property/ qcom,switch-source;
 	qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
-	qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1 &pmi8950_torch2>;
+	qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
 };
 
 &i2c_3  {
