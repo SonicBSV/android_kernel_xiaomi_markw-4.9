@@ -314,6 +314,15 @@ static ssize_t idle_store(struct device *dev,
 		return -EINVAL;
 	}
 
+	if (!sysfs_streq(buf, "all"))
+		return -EINVAL;
+
+	down_read(&zram->init_lock);
+	if (!init_done(zram)) {
+		up_read(&zram->init_lock);
+		return -EINVAL;
+	}
+
 	for (index = 0; index < nr_pages; index++) {
 		/*
 		 * Do not mark ZRAM_UNDER_WB slot as ZRAM_IDLE to close race.
