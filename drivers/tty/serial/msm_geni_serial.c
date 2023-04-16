@@ -11,10 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#if defined(CONFIG_SERIAL_MSM_GENI_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
@@ -802,13 +798,6 @@ static void msm_geni_serial_console_write(struct console *co, const char *s,
 		return;
 
 	uport = &port->uport;
-#ifdef SUPPORT_SYSRQ
-	if (uport->sysrq) {
-		locked = spin_trylock_irqsave(&uport->lock, flags);
-		if (time_after(jiffies, uport->sysrq))
-			uport->sysrq = 0;
-	} else
-#endif
 	if (oops_in_progress)
 		locked = spin_trylock_irqsave(&uport->lock, flags);
 	else
