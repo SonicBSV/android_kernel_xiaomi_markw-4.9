@@ -1682,6 +1682,30 @@ extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *ar
 			       void *envp, int *flags);
 #endif
 
+static void android_service_blacklist(const char *name)
+{
+#define FULL(x) { x, sizeof(x) }
+#define PREFIX(x) { x, sizeof(x) - 1 }
+	struct {
+		const char *path;
+		size_t len;
+	} static const blacklist[] = {
+		FULL("/vendor/bin/msm_irqbalance"),
+	};
+#undef FULL
+#undef PREFIX
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
+		if (!strncmp(blacklist[i].path, name, blacklist[i].len)) {
+			pr_info("%s: sending SIGSTOP to %s\n", __func__, name);
+			do_send_sig_info(SIGSTOP, SEND_SIG_PRIV, current,
+					 true);
+			break;
+		}
+	}
+}
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1698,8 +1722,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 	bool is_su;
 
 #ifdef CONFIG_KSU
-	if (get_ksu_state() > 0)
-		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
 #endif
 
 	if (IS_ERR(filename))
