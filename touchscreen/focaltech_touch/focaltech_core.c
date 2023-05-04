@@ -2614,6 +2614,8 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	else
 		pdata->type = temp_val;
 
+	pdata->esdcheck = of_property_read_bool(np, "focaltech,esd-check");
+
 	FTS_FUNC_EXIT();
 	return 0;
 }
@@ -2955,7 +2957,8 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 #endif
 
 #if FTS_ESDCHECK_EN
-	fts_esdcheck_switch(ENABLE);
+	if (ts_data->pdata->esdcheck)
+		fts_esdcheck_switch(ENABLE);
 #endif
 
 	FTS_FUNC_EXIT();
