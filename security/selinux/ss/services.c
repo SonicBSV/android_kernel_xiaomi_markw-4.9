@@ -70,11 +70,20 @@
 #include "ebitmap.h"
 #include "audit.h"
 
-int selinux_android_netlink_route;
-int selinux_android_netlink_getneigh;
+/* Policy capability names */
+const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX] = {
+	"network_peer_controls",
+	"open_perms",
+	"compat1",
+	"always_check_network",
+	"compat2",
+	"nnp_nosuid_transition"
+};
+
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
 int selinux_policycap_alwaysnetwork;
+int selinux_policycap_nnp_nosuid_transition;
 
 static DEFINE_RWLOCK(policy_rwlock);
 
@@ -1987,16 +1996,29 @@ bad:
 
 static void security_load_policycaps(void)
 {
+	unsigned int i;
+	struct ebitmap_node *node;
+
 	selinux_policycap_netpeer = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_NETPEER);
 	selinux_policycap_openperm = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_OPENPERM);
 	selinux_policycap_alwaysnetwork = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_ALWAYSNETWORK);
+	selinux_policycap_nnp_nosuid_transition =
+		ebitmap_get_bit(&policydb.policycaps,
+				POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION);
 
-	selinux_android_netlink_route = policydb.android_netlink_route;
-	selinux_android_netlink_getneigh = policydb.android_netlink_getneigh;
-	selinux_nlmsg_init();
+	for (i = 0; i < ARRAY_SIZE(selinux_policycap_names); i++)
+		pr_info("SELinux:  policy capability %s=%d\n",
+			selinux_policycap_names[i],
+			ebitmap_get_bit(&policydb.policycaps, i));
+
+	ebitmap_for_each_positive_bit(&policydb.policycaps, node, i) {
+		if (i >= ARRAY_SIZE(selinux_policycap_names))
+			pr_info("SELinux:  unknown policy capability %u\n",
+				i);
+	}
 }
 
 static int security_preserve_bools(struct policydb *p);
@@ -2031,9 +2053,13 @@ int security_load_policy(void *data, size_t len)
 
 	if (!ss_initialized) {
 		avtab_cache_init();
+		ebitmap_cache_init();
+		hashtab_cache_init();
 		rc = policydb_read(&policydb, fp);
 		if (rc) {
 			avtab_cache_destroy();
+			ebitmap_cache_destroy();
+			hashtab_cache_destroy();
 			goto out;
 		}
 
@@ -2044,6 +2070,8 @@ int security_load_policy(void *data, size_t len)
 		if (rc) {
 			policydb_destroy(&policydb);
 			avtab_cache_destroy();
+			ebitmap_cache_destroy();
+			hashtab_cache_destroy();
 			goto out;
 		}
 
@@ -2051,6 +2079,8 @@ int security_load_policy(void *data, size_t len)
 		if (rc) {
 			policydb_destroy(&policydb);
 			avtab_cache_destroy();
+			ebitmap_cache_destroy();
+			hashtab_cache_destroy();
 			goto out;
 		}
 
