@@ -214,7 +214,7 @@ static inline u32 task_sid(const struct task_struct *task)
 /*
  * get the subjective security ID of the current task
  */
-u32 current_sid(void)
+static inline u32 current_sid(void)
 {
 	const struct task_security_struct *tsec = current_security();
 
@@ -2324,6 +2324,7 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 	int nosuid = !mnt_may_suid(bprm->file->f_path.mnt);
 	int rc,error;
 	u32 seclen;
+	u32 av;
 
 	if (!nnp && !nosuid)
 		return 0; /* neither NNP nor nosuid */
@@ -2342,7 +2343,6 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 			return 0;
 		}
 	}
-	
 	/*
 	 * If the policy enables the nnp_nosuid_transition policy capability,
 	 * then we permit transitions under NNP or nosuid if the
