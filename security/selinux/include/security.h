@@ -71,7 +71,6 @@ enum {
 	POLICYDB_CAPABILITY_COMPAT1,
 	POLICYDB_CAPABILITY_ALWAYSNETWORK,
 	POLICYDB_CAPABILITY_COMPAT2,
-	POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
@@ -81,7 +80,6 @@ extern const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
 extern int selinux_policycap_netpeer;
 extern int selinux_policycap_openperm;
 extern int selinux_policycap_alwaysnetwork;
-extern int selinux_policycap_nnp_nosuid_transition;
 
 /*
  * type_datum properties
