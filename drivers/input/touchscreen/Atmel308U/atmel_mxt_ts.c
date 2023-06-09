@@ -4362,6 +4362,27 @@ static void mxt_enable_gesture_mode(struct mxt_data *data, bool enable)
 		dev_err(&data->client->dev, "write to t93 enabled failed!\n");
 }
 
+static void mxt_wakeup_gesture_mode_set(struct mxt_data *data, int on_off)
+{
+	data->wakeup_gesture_mode = (u8)on_off;
+
+	if (data->is_stopped) {
+		/* Set wakeup gesture mode in deepsleep,
+		 * should re-set the registers */
+		if (data->wakeup_gesture_mode) {
+			mxt_enable_irq(data);
+			if (data->input_dev->users)
+				mxt_stop(data);
+		} else {
+			mxt_disable_irq(data);
+			data->is_wakeup_by_gesture = false;
+			mxt_set_gesture_wake_up(data, false);
+			mxt_enable_gesture_mode(data, false);
+			mxt_set_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
+		}
+	}
+}
+
 static ssize_t mxt_wakeup_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -4383,23 +4404,7 @@ static ssize_t mxt_wakeup_mode_store(struct device *dev,
 	error = kstrtoul(buf, 0, &val);
 
 	if (!error)
-		data->wakeup_gesture_mode = (u8)val;
-
-	if (data->is_stopped) {
-		/* Set wakeup gesture mode in deepsleep,
-		 * should re-set the registers */
-		if (data->wakeup_gesture_mode) {
-			mxt_enable_irq(data);
-			if (data->input_dev->users)
-				mxt_stop(data);
-		} else {
-			mxt_disable_irq(data);
-			data->is_wakeup_by_gesture = false;
-			mxt_set_gesture_wake_up(data, false);
-			mxt_enable_gesture_mode(data, false);
-			mxt_set_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
-		}
-	}
+		mxt_wakeup_gesture_mode_set(data, val);
 
 	return error ? : count;
 }
@@ -6382,6 +6387,50 @@ static const struct dev_pm_ops mxt_touchscreen_pm_ops = {
 };
 #endif
 
+#ifdef CONFIG_MACH_XIAOMI
+extern bool xiaomi_ts_probed;
+extern struct semaphore xiaomi_ts_probe_sem;
+extern void xiaomi_ts_set_gesture_on_off_callback(void (*callback)(void*, int), void *priv);
+
+static void gesture_on_off_callback(void *priv, int on_off)
+{
+	mxt_wakeup_gesture_mode_set((struct mxt_data *)priv, on_off);
+}
+
+static int mxt_probe_xiaomi(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	int ret = -ENODEV;
+
+	down(&xiaomi_ts_probe_sem);
+	if (xiaomi_ts_probed)
+		goto end;
+
+	ret = mxt_probe(client, id);
+	if (ret != 0)
+		goto end;
+
+	xiaomi_ts_probed = true;
+	xiaomi_ts_set_gesture_on_off_callback(gesture_on_off_callback, i2c_get_clientdata(client));
+
+end:
+	up(&xiaomi_ts_probe_sem);
+	return ret;
+}
+
+static int mxt_remove_xiaomi(struct i2c_client *client)
+{
+	int ret;
+
+	down(&xiaomi_ts_probe_sem);
+	xiaomi_ts_set_gesture_on_off_callback(NULL, NULL);
+	ret = mxt_remove(client);
+	xiaomi_ts_probed = false;
+	up(&xiaomi_ts_probe_sem);
+	return ret;
+}
+#endif
+
 static const struct i2c_device_id mxt_id[] = {
 	{ "qt602240_ts", 0 },
 	{ "atmel_mxt_ts", 0 },
@@ -6408,8 +6457,13 @@ static struct i2c_driver mxt_driver = {
 		.pm = &mxt_touchscreen_pm_ops,
 #endif
 	},
+#ifdef CONFIG_MACH_XIAOMI
+	.probe		= mxt_probe_xiaomi,
+	.remove		= mxt_remove_xiaomi,
+#else
 	.probe		= mxt_probe,
 	.remove		= mxt_remove,
+#endif
 	.shutdown	= mxt_shutdown,
 	.id_table	= mxt_id,
 };
