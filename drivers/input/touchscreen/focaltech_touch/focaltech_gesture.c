@@ -284,7 +284,8 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 		gesture = KEY_GESTURE_DOWN;
 		break;
 	case GESTURE_DOUBLECLICK:
-		gesture = KEY_GESTURE_U;
+		//gesture = KEY_GESTURE_U;
+		gesture = KEY_WAKEUP; /* dt2w */
 		break;
 	case GESTURE_O:
 		gesture = KEY_GESTURE_O;
@@ -608,6 +609,10 @@ int fts_gesture_init(struct input_dev *input_dev, struct i2c_client *client)
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_V);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
+
+	/* enable dt2w */
+	input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
+	__set_bit(KEY_WAKEUP, input_dev->keybit);
 
 	__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
