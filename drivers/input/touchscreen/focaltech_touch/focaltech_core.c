@@ -72,6 +72,10 @@ int g_show_log;
 char g_sz_debug[1024] = {0};
 #endif
 
+#if FTS_GESTURE_EN
+static int gesture_on_off = 0;
+#endif
+
 /*****************************************************************************
  * Static function prototypes
  *****************************************************************************/
@@ -744,7 +748,7 @@ static int fts_read_touchdata(struct fts_ts_data *data)
 #if FTS_GESTURE_EN
 	u8 state;
 
-	if (data->suspended && data->pdata->wakeup_gestures_en) {
+	if (data->suspended && data->pdata->wakeup_gestures_en && gesture_on_off) {
 		fts_i2c_read_reg(data->client, FTS_REG_GESTURE_EN, &state);
 		if (state == 1) {
 			fts_gesture_readdata(data->client);
@@ -1454,7 +1458,7 @@ static int fts_ts_suspend(struct device *dev)
 #endif
 
 #if FTS_GESTURE_EN
-	if (data->pdata->wakeup_gestures_en) {
+	if (data->pdata->wakeup_gestures_en && gesture_on_off) {
 		retval = fts_gesture_suspend(data->client);
 		if (retval == 0) {
 			/* Enter into gesture mode(suspend) */
@@ -1530,7 +1534,7 @@ static int fts_ts_resume(struct device *dev)
 #endif
 
 #if FTS_GESTURE_EN
-	if (data->pdata->wakeup_gestures_en) {
+	if (data->pdata->wakeup_gestures_en && gesture_on_off) {
 		if (fts_gesture_resume(data->client) == 0) {
 			int err;
 
@@ -1562,6 +1566,54 @@ static int fts_ts_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+extern bool xiaomi_ts_probed;
+extern struct semaphore xiaomi_ts_probe_sem;
+extern void xiaomi_ts_set_gesture_on_off_callback(void (*callback)(void*, int), void *priv);
+
+static void gesture_on_off_callback(void *priv, int on_off)
+{
+	gesture_on_off = on_off;
+	if (fts_gesture_resume(((struct fts_ts_data *)priv)->client))
+		FTS_ERROR("%s: can't resume gestures\n", __func__);
+}
+
+static int fts_ts_probe_xiaomi(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	int ret = -ENODEV;
+
+	down(&xiaomi_ts_probe_sem);
+	if (xiaomi_ts_probed)
+		goto end;
+
+	ret = fts_ts_probe(client, id);
+	if (ret != 0)
+		goto end;
+
+	xiaomi_ts_probed = true;
+#if FTS_GESTURE_EN
+	xiaomi_ts_set_gesture_on_off_callback(gesture_on_off_callback, fts_wq_data);
+#endif
+
+end:
+	up(&xiaomi_ts_probe_sem);
+	return ret;
+}
+
+static int fts_ts_remove_xiaomi(struct i2c_client *client)
+{
+	int ret;
+
+	down(&xiaomi_ts_probe_sem);
+	xiaomi_ts_set_gesture_on_off_callback(NULL, NULL);
+	ret = fts_ts_remove(client);
+	xiaomi_ts_probed = false;
+	up(&xiaomi_ts_probe_sem);
+	return ret;
+}
+#endif
+
 /*****************************************************************************
  * I2C Driver
  *****************************************************************************/
@@ -1577,8 +1629,13 @@ static const struct of_device_id fts_match_table[] = {
 };
 
 static struct i2c_driver fts_ts_driver = {
+#ifdef CONFIG_MACH_XIAOMI
+	.probe = fts_ts_probe_xiaomi,
+	.remove = fts_ts_remove_xiaomi,
+#else
 	.probe = fts_ts_probe,
 	.remove = fts_ts_remove,
+#endif
 	.driver = {
 		.name = FTS_DRIVER_NAME,
 		.owner = THIS_MODULE,
