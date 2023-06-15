@@ -152,6 +152,9 @@ struct fts_ts_data {
 	struct workqueue_struct *ts_workqueue;
 	struct regulator *vdd;
 	struct regulator *vcc_i2c;
+	struct pinctrl *ts_pinctrl;
+	struct pinctrl_state *gpio_state_active;
+	struct pinctrl_state *gpio_state_suspend;
 	spinlock_t irq_lock;
 	struct mutex report_mutex;
 	u16 addr;

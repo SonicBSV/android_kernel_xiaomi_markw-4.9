@@ -80,6 +80,60 @@ static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
 
 
+static int fts_initialize_pinctrl(struct fts_ts_data *data)
+{
+	int ret = 0;
+	struct device *dev = &data->client->dev;
+
+	data->ts_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(data->ts_pinctrl)) {
+		FTS_INFO("[PINCTRL] Target does not use pinctrl\n");
+		ret = PTR_ERR(data->ts_pinctrl);
+		data->ts_pinctrl = NULL;
+		return ret;
+	}
+
+	data->gpio_state_active = pinctrl_lookup_state(data->ts_pinctrl, "pmx_ts_active");
+	if (IS_ERR_OR_NULL(data->gpio_state_active)) {
+		FTS_INFO("[PINCTRL] Can not get ts default pinstate\n");
+		ret = PTR_ERR(data->gpio_state_active);
+		data->ts_pinctrl = NULL;
+		return ret;
+	}
+
+	data->gpio_state_suspend = pinctrl_lookup_state(data->ts_pinctrl, "pmx_ts_suspend");
+	if (IS_ERR_OR_NULL(data->gpio_state_suspend)) {
+		FTS_INFO("[PINCTRL] Can not get ts sleep pinstate\n");
+		ret = PTR_ERR(data->gpio_state_suspend);
+		data->ts_pinctrl = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int fts_pinctrl_select(struct fts_ts_data *data, bool on)
+{
+	int ret = 0;
+	struct pinctrl_state *pins_state;
+	struct device *dev = &data->client->dev;
+
+	pins_state = on ? data->gpio_state_active : data->gpio_state_suspend;
+	if (!IS_ERR_OR_NULL(pins_state)) {
+		ret = pinctrl_select_state(data->ts_pinctrl, pins_state);
+		if (ret) {
+			FTS_INFO("[PINCTRL] can not set %s pins\n",
+				on ? "pmx_ts_active" : "pmx_ts_suspend");
+			return ret;
+		}
+	} else {
+		FTS_INFO("[PINCTRL] not a valid '%s' pinstate\n",
+			on ? "pmx_ts_active" : "pmx_ts_suspend");
+	}
+
+	return ret;
+}
+
 /*****************************************************************************
  *  Name: fts_wait_tp_to_valid
  *  Brief:   Read chip id until TP FW become valid,
@@ -319,29 +373,55 @@ static int fts_power_source_ctrl(struct fts_ts_data *data, int enable)
 {
 	int rc;
 
+	if (IS_ERR_OR_NULL(data->vdd)) {
+		FTS_ERROR("vdd is invalid");
+		return -EINVAL;
+	}
+
 	FTS_FUNC_ENTER();
 	if (enable) {
+		gpio_direction_output(data->pdata->reset_gpio, 0);
+		msleep(1);
 		rc = regulator_enable(data->vdd);
 		if (rc)
 			FTS_ERROR("Regulator vdd enable failed rc=%d", rc);
 
-		rc = regulator_enable(data->vcc_i2c);
-		if (rc)
-			FTS_ERROR("Regulator vcc_i2c enable failed rc=%d", rc);
+		if (!IS_ERR_OR_NULL(data->vcc_i2c)) {
+			rc = regulator_enable(data->vcc_i2c);
+			if (rc)
+				FTS_ERROR("Regulator vcc_i2c enable failed rc=%d", rc);
+		}
 	} else {
+		gpio_direction_output(data->pdata->reset_gpio, 0);
+		msleep(1);
 		rc = regulator_disable(data->vdd);
 		if (rc)
 			FTS_ERROR("Regulator vdd disable failed rc=%d", rc);
 
-		rc = regulator_disable(data->vcc_i2c);
-		if (rc)
-			FTS_ERROR("Regulator vcc_i2c disable failed rc=%d",
-							rc);
+		if (!IS_ERR_OR_NULL(data->vcc_i2c)) {
+			rc = regulator_disable(data->vcc_i2c);
+			if (rc)
+				FTS_ERROR("Regulator vcc_i2c disable failed rc=%d", rc);
+		}
 	}
 	FTS_FUNC_EXIT();
 	return 0;
 }
 
+static void fts_power_source_exit(struct fts_ts_data *data)
+{
+	if (!IS_ERR_OR_NULL(data->vdd)) {
+		if (regulator_count_voltages(data->vdd) > 0)
+			regulator_set_voltage(data->vdd, 0, FTS_VTG_MAX_UV);
+		regulator_put(data->vdd);
+	}
+	if (!IS_ERR_OR_NULL(data->vcc_i2c)) {
+		if (regulator_count_voltages(data->vcc_i2c) > 0)
+			regulator_set_voltage(data->vcc_i2c, 0, FTS_I2C_VTG_MAX_UV);
+		regulator_put(data->vcc_i2c);
+	}
+	data->vdd = data->vcc_i2c = NULL;
+}
 #endif
 
 
@@ -1125,11 +1205,21 @@ static int fts_ts_probe(struct i2c_client *client,
 	fts_power_source_ctrl(data, 1);
 #endif
 
+	err = fts_initialize_pinctrl(data);
+	if (err || !data->ts_pinctrl) {
+		FTS_INFO("[PINCTRL] Initialize pinctrl failed\n");
+	} else {
+		err = fts_pinctrl_select(data, true);
+		if (err < 0) {
+			FTS_ERROR("[PINCTRL] pinctrl_select failed\n");
+			goto free_pinctrl;
+		}
+	}
+
 	err = fts_gpio_configure(data);
 	if (err < 0) {
 		FTS_ERROR("[GPIO]Failed to configure the gpios");
-		FTS_FUNC_EXIT();
-		return err;
+		goto free_pinctrl;
 	}
 
 	i2c_set_clientdata(data->client, data);
@@ -1232,6 +1322,17 @@ free_gpio:
 		gpio_free(pdata->reset_gpio);
 	if (gpio_is_valid(pdata->irq_gpio))
 		gpio_free(pdata->irq_gpio);
+free_pinctrl:
+	if (data->ts_pinctrl) {
+		if (fts_pinctrl_select(data, false) < 0)
+			FTS_ERROR("[PINCTRL] Cannot get idle pinctrl state\n");
+		devm_pinctrl_put(data->ts_pinctrl);
+	}
+
+#if FTS_POWER_SOURCE_CUST_EN
+	fts_power_source_ctrl(data, DISABLE);
+	fts_power_source_exit(data);
+#endif
 
 	return err;
 
@@ -1290,13 +1391,23 @@ static int fts_ts_remove(struct i2c_client *client)
 	if (gpio_is_valid(data->pdata->irq_gpio))
 		gpio_free(data->pdata->irq_gpio);
 
-
 #if FTS_TEST_EN
 	fts_test_exit(client);
 #endif
 
 #if FTS_ESDCHECK_EN
 	fts_esdcheck_exit();
+#endif
+
+	if (data->ts_pinctrl) {
+		if (fts_pinctrl_select(data, false) < 0)
+			FTS_ERROR("[PINCTRL] Cannot get idle pinctrl state\n");
+		devm_pinctrl_put(data->ts_pinctrl);
+	}
+
+#if FTS_POWER_SOURCE_CUST_EN
+	fts_power_source_ctrl(data, DISABLE);
+	fts_power_source_exit(data);
 #endif
 
 	FTS_FUNC_EXIT();
@@ -1357,6 +1468,10 @@ static int fts_ts_suspend(struct device *dev)
 	if (retval < 0)
 		FTS_ERROR("Set TP to sleep mode fail, ret=%d!", retval);
 
+#if FTS_POWER_SOURCE_CUST_EN
+	fts_power_source_ctrl(data, false);
+#endif
+
 	data->suspended = true;
 
 	FTS_FUNC_EXIT();
@@ -1383,6 +1498,10 @@ static int fts_ts_resume(struct device *dev)
 	}
 
 	fts_release_all_finger();
+
+#if FTS_POWER_SOURCE_CUST_EN
+	fts_power_source_ctrl(data, true);
+#endif
 
 #if (!FTS_CHIP_IDC)
 	fts_reset_proc(200);
