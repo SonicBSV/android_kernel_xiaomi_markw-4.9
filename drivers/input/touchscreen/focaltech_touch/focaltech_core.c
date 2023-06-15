@@ -215,7 +215,6 @@ static int fts_input_dev_init(struct i2c_client *client,
 	input_dev->dev.parent = &client->dev;
 
 	input_set_drvdata(input_dev, data);
-	i2c_set_clientdata(client, data);
 
 	__set_bit(EV_KEY, input_dev->evbit);
 	if (data->pdata->have_key) {
@@ -1112,41 +1111,49 @@ static int fts_ts_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	input_dev = input_allocate_device();
-	if (!input_dev) {
-		FTS_ERROR("[INPUT]Failed to allocate input device");
-		FTS_FUNC_EXIT();
-		return -ENOMEM;
-	}
-
-	data->input_dev = input_dev;
 	data->client = client;
 	data->pdata = pdata;
 
 	fts_wq_data = data;
 	fts_i2c_client = client;
-	fts_input_dev = input_dev;
 
 	spin_lock_init(&fts_wq_data->irq_lock);
 	mutex_init(&fts_wq_data->report_mutex);
-
-	fts_input_dev_init(client, data, input_dev, pdata);
 
 #if FTS_POWER_SOURCE_CUST_EN
 	fts_power_source_init(data);
 	fts_power_source_ctrl(data, 1);
 #endif
 
-	fts_ctpm_get_upgrade_array();
-
 	err = fts_gpio_configure(data);
 	if (err < 0) {
 		FTS_ERROR("[GPIO]Failed to configure the gpios");
-		goto free_input;
+		FTS_FUNC_EXIT();
+		return err;
 	}
 
+	i2c_set_clientdata(data->client, data);
+
+	mdelay(100);
 	fts_reset_proc(200);
-	fts_wait_tp_to_valid(client);
+	fts_ctpm_get_upgrade_array();
+	err = fts_wait_tp_to_valid(client);
+	if (err < 0) {
+		FTS_ERROR("[I2C]Failed to read chip id");
+		goto free_gpio;
+	}
+
+	input_dev = input_allocate_device();
+	if (!input_dev) {
+		FTS_ERROR("[INPUT]Failed to allocate input device");
+		err = -ENOMEM;
+		goto free_gpio;
+	}
+
+	data->input_dev = input_dev;
+	fts_input_dev = input_dev;
+
+	fts_input_dev_init(client, data, input_dev, pdata);
 
 	err = request_threaded_irq(client->irq, NULL, fts_ts_interrupt,
 				pdata->irq_gpio_flags | IRQF_ONESHOT |
@@ -1154,7 +1161,7 @@ static int fts_ts_probe(struct i2c_client *client,
 				client->dev.driver->name, data);
 	if (err) {
 		FTS_ERROR("Request irq failed!");
-		goto free_gpio;
+		goto free_input;
 	}
 
 	fts_irq_disable();
@@ -1162,8 +1169,8 @@ static int fts_ts_probe(struct i2c_client *client,
 #if FTS_PSENSOR_EN
 	if (fts_sensor_init(data) != 0) {
 		FTS_ERROR("fts_sensor_init failed!");
-		FTS_FUNC_EXIT();
-		return 0;
+		err = -ENODEV;
+		goto free_irq;
 	}
 #endif
 
@@ -1215,14 +1222,16 @@ static int fts_ts_probe(struct i2c_client *client,
 	FTS_FUNC_EXIT();
 	return 0;
 
+free_irq:
+	free_irq(client->irq, data);
+free_input:
+	input_unregister_device(data->input_dev);
+	i2c_set_clientdata(client, NULL);
 free_gpio:
 	if (gpio_is_valid(pdata->reset_gpio))
 		gpio_free(pdata->reset_gpio);
 	if (gpio_is_valid(pdata->irq_gpio))
 		gpio_free(pdata->irq_gpio);
-free_input:
-	input_unregister_device(data->input_dev);
-	i2c_set_clientdata(client, NULL);
 
 	return err;
 
@@ -1270,7 +1279,10 @@ static int fts_ts_remove(struct i2c_client *client)
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&data->early_suspend);
 #endif
+
 	free_irq(client->irq, data);
+	input_unregister_device(data->input_dev);
+	i2c_set_clientdata(data->client, NULL);
 
 	if (gpio_is_valid(data->pdata->reset_gpio))
 		gpio_free(data->pdata->reset_gpio);
@@ -1278,7 +1290,6 @@ static int fts_ts_remove(struct i2c_client *client)
 	if (gpio_is_valid(data->pdata->irq_gpio))
 		gpio_free(data->pdata->irq_gpio);
 
-	input_unregister_device(data->input_dev);
 
 #if FTS_TEST_EN
 	fts_test_exit(client);
