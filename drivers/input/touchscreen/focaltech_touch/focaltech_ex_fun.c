@@ -187,15 +187,6 @@ static ssize_t fts_debug_write(
 		}
 		break;
 
-	case PROC_ENTER_TEST_ENVIRONMENT:
-		FTS_DEBUG("[APK]: PROC_ENTER_TEST_ENVIRONMENT = %x", writebuf[1]);
-		if (0 == writebuf[1]) {
-			fts_enter_test_environment(0);
-		} else {
-			fts_enter_test_environment(1);
-		}
-		break;
-
 	default:
 		break;
 	}
@@ -397,16 +388,6 @@ static int fts_debug_write(struct file *filp,
 			ts_data->fw_is_running = false;
 		}
 		break;
-
-	case PROC_ENTER_TEST_ENVIRONMENT:
-		FTS_DEBUG("[APK]: PROC_ENTER_TEST_ENVIRONMENT = %x", writebuf[1]);
-		if (0 == writebuf[1]) {
-			fts_enter_test_environment(0);
-		} else {
-			fts_enter_test_environment(1);
-		}
-		break;
-
 	default:
 		break;
 	}
@@ -905,68 +886,6 @@ exit:
 	return count;
 }
 
-/* fts_upgrade_bin interface */
-static ssize_t fts_fwupgradebin_show(
-	struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return -EPERM;
-}
-
-static ssize_t fts_fwupgradebin_store(
-	struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	char fwname[FILE_NAME_LENGTH] = { 0 };
-	struct input_dev *input_dev = fts_data->input_dev;
-
-	if ((count <= 1) || (count >= FILE_NAME_LENGTH - 32)) {
-		FTS_ERROR("fw bin name's length(%d) fail", (int)count);
-		return -EINVAL;
-	}
-
-	memset(fwname, 0, sizeof(fwname));
-	snprintf(fwname, FILE_NAME_LENGTH, "%s", buf);
-	fwname[count - 1] = '\0';
-
-	FTS_INFO("upgrade with bin file through sysfs node");
-	mutex_lock(&input_dev->mutex);
-	fts_upgrade_bin(fwname, 0);
-	mutex_unlock(&input_dev->mutex);
-
-	return count;
-}
-
-/* fts_force_upgrade interface */
-static ssize_t fts_fwforceupg_show(
-	struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return -EPERM;
-}
-
-static ssize_t fts_fwforceupg_store(
-	struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	char fwname[FILE_NAME_LENGTH];
-	struct input_dev *input_dev = fts_data->input_dev;
-
-	if ((count <= 1) || (count >= FILE_NAME_LENGTH - 32)) {
-		FTS_ERROR("fw bin name's length(%d) fail", (int)count);
-		return -EINVAL;
-	}
-
-	memset(fwname, 0, sizeof(fwname));
-	snprintf(fwname, FILE_NAME_LENGTH, "%s", buf);
-	fwname[count - 1] = '\0';
-
-	FTS_INFO("force upgrade through sysfs node");
-	mutex_lock(&input_dev->mutex);
-	fts_upgrade_bin(fwname, 1);
-	mutex_unlock(&input_dev->mutex);
-
-	return count;
-}
-
 /* fts_driver_info interface */
 static ssize_t fts_driverinfo_show(
 	struct device *dev, struct device_attribute *attr, char *buf)
@@ -1145,9 +1064,6 @@ static DEVICE_ATTR(fts_fw_version, S_IRUGO | S_IWUSR, fts_tpfwver_show, fts_tpfw
 *       cat rw_reg
 */
 static DEVICE_ATTR(fts_rw_reg, S_IRUGO | S_IWUSR, fts_tprwreg_show, fts_tprwreg_store);
-/*  upgrade from fw bin file   example:echo "*.bin" > fts_upgrade_bin */
-static DEVICE_ATTR(fts_upgrade_bin, S_IRUGO | S_IWUSR, fts_fwupgradebin_show, fts_fwupgradebin_store);
-static DEVICE_ATTR(fts_force_upgrade, S_IRUGO | S_IWUSR, fts_fwforceupg_show, fts_fwforceupg_store);
 static DEVICE_ATTR(fts_driver_info, S_IRUGO | S_IWUSR, fts_driverinfo_show, fts_driverinfo_store);
 static DEVICE_ATTR(fts_dump_reg, S_IRUGO | S_IWUSR, fts_dumpreg_show, fts_dumpreg_store);
 static DEVICE_ATTR(fts_hw_reset, S_IRUGO | S_IWUSR, fts_hw_reset_show, fts_hw_reset_store);
@@ -1161,8 +1077,6 @@ static struct attribute *fts_attributes[] = {
 	&dev_attr_fts_fw_version.attr,
 	&dev_attr_fts_rw_reg.attr,
 	&dev_attr_fts_dump_reg.attr,
-	&dev_attr_fts_upgrade_bin.attr,
-	&dev_attr_fts_force_upgrade.attr,
 	&dev_attr_fts_driver_info.attr,
 	&dev_attr_fts_hw_reset.attr,
 	&dev_attr_fts_irq.attr,

@@ -1646,8 +1646,8 @@ static int fts_input_report_key(struct fts_ts_data *data, int index)
 	}
 
 	for (i = 0; i < data->pdata->key_number; i++) {
-		if ((x >= x_dim[i] - FTS_KEY_DIM) && (x <= x_dim[i] + FTS_KEY_DIM) &&
-			(y >= y_dim[i] - FTS_KEY_DIM) && (y <= y_dim[i] + FTS_KEY_DIM)) {
+		if ((x >= x_dim[i] - data->pdata->key_dim) && (x <= x_dim[i] + data->pdata->key_dim) &&
+			(y >= y_dim[i] - data->pdata->key_dim) && (y <= y_dim[i] + data->pdata->key_dim)) {
 			if (EVENT_DOWN(data->events[index].flag)
 				&& !(data->key_state & (1 << i))) {
 				input_report_key(data->input_dev, data->pdata->keys[i], 1);
@@ -2753,6 +2753,8 @@ static int fb_notifier_callback(struct notifier_block *self,
 {
 	struct fb_event *evdata = data;
 	int *blank = NULL;
+	struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data,
+					fb_notif);
 
 	if (!(event == FB_EARLY_EVENT_BLANK || event == FB_EVENT_BLANK)) {
 		FTS_INFO("event(%lu) do not need process\n", event);
@@ -2856,12 +2858,6 @@ tvm_setup:
 #ifdef CONFIG_ARCH_QTI_VM
 	return ret;
 #endif
-
-	ret = fts_fwupg_init(fts_data);
-	if (ret)
-		FTS_ERROR("init fw upgrade fail");
-
-	return 0;
 
 err_irq_req:
 	if (gpio_is_valid(fts_data->pdata->reset_gpio))
@@ -3035,8 +3031,6 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 	fts_release_apk_debug_channel(ts_data);
 	fts_remove_sysfs(ts_data);
 	fts_ex_mode_exit(ts_data);
-
-	fts_fwupg_exit(ts_data);
 
 
 #if FTS_ESDCHECK_EN
