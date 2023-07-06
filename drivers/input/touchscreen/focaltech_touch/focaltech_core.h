@@ -61,6 +61,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/dma-mapping.h>
+#include <linux/input/gen_vkeys.h>
 #include "focaltech_common.h"
 
 /*****************************************************************************
@@ -101,6 +102,8 @@
 #define FTX_MAX_COMPATIBLE_TYPE             4
 #define FTX_MAX_COMMMAND_LENGTH             16
 
+// QCOM vkeys
+#define VKEY_Y_OFFSET_DEFAULT 0
 
 /*****************************************************************************
 *  Alternative mode (When something goes wrong, the modules may be able to solve the problem.)
@@ -138,6 +141,14 @@ struct fts_ts_platform_data {
 	u32 x_min;
 	u32 y_min;
 	u32 max_touch_number;
+
+	// QCOM vkeys
+	bool key_is_vkeys;
+	bool vkeys_y_beyond_maxy;
+	struct vkeys_platform_data *vkeys_pdata;
+	u32 vkeys_maxy;
+	u32 *vkeys_x1;
+	u32 *vkeys_x2;
 };
 
 struct ts_event {
