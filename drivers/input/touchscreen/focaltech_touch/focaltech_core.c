@@ -3388,7 +3388,7 @@ static void __exit fts_ts_exit(void)
 #ifdef CONFIG_ARCH_QTI_VM
 module_init(fts_ts_init);
 #else
-late_initcall(fts_ts_init);
+//late_initcall(fts_ts_init);
 #endif
 module_exit(fts_ts_exit);
 
