@@ -10,10 +10,6 @@
  * GNU General Public License for more details.
  */
 
-/*
- * IPC ROUTER SMD XPRT module.
- */
-#define DEBUG
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -28,7 +24,7 @@
 #include <soc/qcom/smsm.h>
 #include <soc/qcom/subsystem_restart.h>
 
-static int msm_ipc_router_smd_xprt_debug_mask;
+static int msm_ipc_router_smd_xprt_debug_mask = 0;
 module_param_named(debug_mask, msm_ipc_router_smd_xprt_debug_mask,
 		   int, 0664);
 

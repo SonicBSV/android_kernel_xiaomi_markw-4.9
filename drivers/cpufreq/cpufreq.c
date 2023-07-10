@@ -819,6 +819,9 @@ static ssize_t store_##file_name					\
 	int ret, temp;							\
 	struct cpufreq_policy new_policy;				\
 									\
+	if (&policy->object == &policy->min)				\
+		return count;						\
+									\
 	memcpy(&new_policy, policy, sizeof(*policy));			\
 	new_policy.min = policy->user_policy.min;			\
 	new_policy.max = policy->user_policy.max;			\
@@ -1804,8 +1807,8 @@ void cpufreq_suspend(void)
 		}
 
 		if (cpufreq_driver->suspend && cpufreq_driver->suspend(policy))
-			pr_err("%s: Failed to suspend driver: %p\n", __func__,
-				policy);
+			pr_err("%s: Failed to suspend driver: %s\n", __func__,
+				cpufreq_driver->name);
 	}
 
 suspend:

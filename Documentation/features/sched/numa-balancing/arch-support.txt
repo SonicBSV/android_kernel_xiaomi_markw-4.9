@@ -23,7 +23,6 @@
     |       metag: |  ..  |
     |  microblaze: |  ..  |
     |        mips: | TODO |
-    |     mn10300: |  ..  |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: |  ..  |

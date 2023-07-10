@@ -2344,10 +2344,8 @@ static int qpnp_lcdb_regulator_probe(struct platform_device *pdev)
 	mutex_init(&lcdb->read_write_mutex);
 
 	rc = qpnp_lcdb_parse_dt(lcdb);
-	if (rc < 0) {
-		pr_err("Failed to parse dt rc=%d\n", rc);
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "Failed to parse dt rc=%d\n");
 
 	lcdb->lcdb_class.name = "lcd_bias";
 	lcdb->lcdb_class.owner = THIS_MODULE;
@@ -2389,6 +2387,7 @@ static struct platform_driver qpnp_lcdb_regulator_driver = {
 	.driver		= {
 		.name		= QPNP_LCDB_REGULATOR_DRIVER_NAME,
 		.of_match_table	= lcdb_match_table,
+		.probe_type	= PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe		= qpnp_lcdb_regulator_probe,
 	.remove		= qpnp_lcdb_regulator_remove,
@@ -2398,7 +2397,7 @@ static int __init qpnp_lcdb_regulator_init(void)
 {
 	return platform_driver_register(&qpnp_lcdb_regulator_driver);
 }
-arch_initcall(qpnp_lcdb_regulator_init);
+subsys_initcall(qpnp_lcdb_regulator_init);
 
 static void __exit qpnp_lcdb_regulator_exit(void)
 {

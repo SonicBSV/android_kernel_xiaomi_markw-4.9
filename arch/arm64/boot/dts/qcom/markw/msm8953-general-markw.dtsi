@@ -178,15 +178,20 @@
 		reg-names = "sn-base";
 	};
 
-	sec_boot_fuse: secbootfuse@0xa41d0 {
-		compatible = "qcom,sec-boot-fuse";
-		reg = <0xa41d0 0x4>;
-		reg-names = "sec-boot-base";
-	};
-
 	usb3: ssusb@7000000 {
 		vbus_dwc3-supply = <&smbcharger_charger_otg>;
 		qcom,detect-dpdm-floating;
+	};
+
+	gen_vkeys {
+		compatible = "qcom,gen_vkeys";
+		label = "ft5346";
+		qcom,disp-maxx = <1080>;
+		qcom,disp-maxy = <1920>;
+		qcom,panel-maxx = <1080>;
+		qcom,panel-maxy = <2080>;
+		qcom,key-codes = <139 172 158>;
+		qcom,y-offset = <0>;
 	};
 
 	qcom_seecom: qseecom@84A00000 {

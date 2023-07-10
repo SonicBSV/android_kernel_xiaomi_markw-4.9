@@ -42,6 +42,12 @@ get_last_dtc_version() {
 
 last_dtc_ver=$(get_last_dtc_version)
 
+get_last_dtc_version() {
+	git log --oneline scripts/dtc/ | grep 'upstream' | head -1 | sed -e 's/^.* \(.*\)/\1/'
+}
+
+last_dtc_ver=$(get_last_dtc_version)
+
 # Build DTC
 cd $DTC_UPSTREAM_PATH
 make clean

@@ -15,6 +15,9 @@ config DEFCONFIG_LIST
 	default "/boot/config-$UNAME_RELEASE"
 	default "$ARCH_DEFCONFIG"
 	default "arch/$ARCH/defconfig"
+	
+config TOOLS_SUPPORT_RELR
+	bool "Declare tool support for RELR"	
 
 config CONSTRUCTORS
 	bool
@@ -1561,7 +1564,6 @@ config RELAY
 
 config BLK_DEV_INITRD
 	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
-	depends on BROKEN || !FRV
 	help
 	  The initial RAM filesystem is a ramfs which is loaded by the
 	  boot loader (loadlin or lilo) and that is mounted as root
@@ -1601,6 +1603,9 @@ config CC_OPTIMIZE_FOR_SIZE
 	  If unsure, say N.
 
 endchoice
+
+config GCC_GRAPHITE
+	bool "Enable GCC Polyhedral Loop Optimization (Graphite)"
 
 config SYSCTL
 	bool
@@ -1668,7 +1673,7 @@ config MULTIUSER
 
 config SGETMASK_SYSCALL
 	bool "sgetmask/ssetmask syscalls support" if EXPERT
-	def_bool PARISC || MN10300 || BLACKFIN || M68K || PPC || MIPS || X86 || SPARC || CRIS || MICROBLAZE || SUPERH
+	def_bool PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
 	---help---
 	  sys_sgetmask and sys_ssetmask are obsolete system calls
 	  no longer supported in libc but still enabled by default in some
@@ -1736,7 +1741,7 @@ config KALLSYMS_ABSOLUTE_PERCPU
 config KALLSYMS_BASE_RELATIVE
 	bool
 	depends on KALLSYMS
-	default !IA64 && !(TILE && 64BIT)
+	default !IA64
 	help
 	  Instead of emitting them as absolute values in the native word size,
 	  emit the symbol references in the kallsyms table as 32-bit entries,

@@ -2375,7 +2375,8 @@ void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
 	struct numa_group *ng;
 	int priv;
 
-	if (!static_branch_likely(&sched_numa_balancing))
+	if (!IS_ENABLED(CONFIG_NUMA_BALANCING) ||
+	    !static_branch_likely(&sched_numa_balancing))
 		return;
 
 	/* for example, ksmd faulting in a user's mm */
@@ -8510,6 +8511,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 		return 0;
 #endif
 
+	/* Dont allow boosted tasks to be pulled to small cores */
+	if (env->flags & LBF_IGNORE_BIG_TASKS &&
+		(schedtune_task_boost(p) > 0))
+		return 0;
+
 	if (task_running(env->src_rq, p)) {
 		schedstat_inc(p->se.statistics.nr_failed_migrations_running);
 		return 0;
@@ -9004,7 +9010,7 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 	    (max_capacity < capacity)) {
 		mcc->val = capacity;
 		mcc->cpu = cpu;
-#ifdef CONFIG_SCHED_DEBUG
+#if 0
 		raw_spin_unlock_irqrestore(&mcc->lock, flags);
 #ifdef CONFIG_SUSPEND_LOG_DEBUG
 		printk_deferred(KERN_INFO "CPU%d: update max cpu_capacity %lu\n",
@@ -9746,6 +9752,11 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 		}
 
 		env->imbalance = 0;
+		if (busiest->group_type == group_overloaded &&
+				local->group_type <= group_misfit_task) {
+			env->imbalance = busiest->load_per_task;
+			return;
+		}
 		return fix_small_imbalance(env, sds);
 	}
 
@@ -10377,9 +10388,16 @@ no_move:
 			raw_spin_unlock_irqrestore(&busiest->lock, flags);
 
 			if (active_balance) {
-				stop_one_cpu_nowait(cpu_of(busiest),
+				int ret;
+
+				ret = stop_one_cpu_nowait(cpu_of(busiest),
 					active_load_balance_cpu_stop, busiest,
 					&busiest->active_balance_work);
+				if (!ret) {
+					clear_reserved(this_cpu);
+					busiest->active_balance = 0;
+					active_balance = 0;
+				}
 				*continue_balancing = 0;
 			}
 
@@ -10864,11 +10882,19 @@ unlock:
  */
 void nohz_balance_enter_idle(int cpu)
 {
-	/*
-	 * If this cpu is going down, then nothing needs to be done.
-	 */
-	if (!cpu_active(cpu))
+	if (!cpu_active(cpu)) {	
+		/*
+		 * A CPU can be paused while it is idle with it's tick
+		 * stopped. nohz_balance_exit_idle() should be called
+		 * from the local CPU, so it can't be called during
+		 * pause. This results in paused CPU participating in
+		 * the nohz idle balance, which should be avoided.
+		 * When the paused CPU exits idle and enters again,
+		 * exempt the paused CPU from nohz_balance_exit_idle.
+		 */
+		nohz_balance_exit_idle(cpu);
 		return;
+	}
 
 	if (test_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu)))
 		return;
@@ -11261,7 +11287,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 		entity_tick(cfs_rq, se, queued);
 	}
 
-	if (static_branch_unlikely(&sched_numa_balancing))
+	if (IS_ENABLED(CONFIG_NUMA_BALANCING) &&
+	    static_branch_unlikely(&sched_numa_balancing))
 		task_tick_numa(rq, curr);
 
 #ifdef CONFIG_SMP

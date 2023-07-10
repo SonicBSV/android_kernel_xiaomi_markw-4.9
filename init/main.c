@@ -200,13 +200,13 @@ EXPORT_SYMBOL(loops_per_jiffy);
 
 static int __init debug_kernel(char *str)
 {
-	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+	console_loglevel = 0;
 	return 0;
 }
 
 static int __init quiet_kernel(char *str)
 {
-	console_loglevel = CONSOLE_LOGLEVEL_QUIET;
+	console_loglevel = 0;
 	return 0;
 }
 
@@ -671,8 +671,6 @@ asmlinkage __visible void __init start_kernel(void)
 		efi_free_boot_services();
 	}
 
-	ftrace_init();
-
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 
@@ -835,7 +833,7 @@ static initcall_t *initcall_levels[] __initdata = {
 };
 
 /* Keep these in sync with initcalls in include/linux/init.h */
-static char *initcall_level_names[] __initdata = {
+static const char *initcall_level_names[] __initdata = {
 	"early",
 	"core",
 	"postcore",

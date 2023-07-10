@@ -185,7 +185,7 @@ module_param_named(
 	debug_mask, __debug_mask, int, 0600
 );
 
-static int __weak_chg_icl_ua = 500000;
+static int __weak_chg_icl_ua = 900000;
 module_param_named(
 	weak_chg_icl_ua, __weak_chg_icl_ua, int, 0600);
 
@@ -577,7 +577,7 @@ static int smb2_usb_set_prop(struct power_supply *psy,
 		rc = smblib_set_prop_sdp_current_max(chg, val);
 		break;
 	default:
-		pr_err("set prop %d is not supported\n", psp);
+		pr_debug("set prop %d is not supported\n", psp);
 		rc = -EINVAL;
 		break;
 	}
@@ -688,7 +688,7 @@ static int smb2_usb_port_set_prop(struct power_supply *psy,
 
 	switch (psp) {
 	default:
-		pr_err_ratelimited("Set prop %d is not supported in pc_port\n",
+		pr_debug("Set prop %d is not supported in pc_port\n",
 				psp);
 		rc = -EINVAL;
 		break;
@@ -811,7 +811,7 @@ static int smb2_usb_main_set_prop(struct power_supply *psy,
 		rc = smblib_toggle_stat(chg, val->intval);
 		break;
 	default:
-		pr_err("set prop %d is not supported\n", psp);
+		pr_debug("set prop %d is not supported\n", psp);
 		rc = -EINVAL;
 		break;
 	}
@@ -1263,6 +1263,8 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		return 1;
 	default:
 		break;
@@ -1659,11 +1661,12 @@ static int smb2_init_hw(struct smb2 *chip)
 			chip->dt.no_pd, 0);
 	/*
 	 * AICL configuration:
-	 * start from min and AICL ADC disable
+	 * start from min, AICL rerun enable and AICL ADC disable
 	 */
 	rc = smblib_masked_write(chg, USBIN_AICL_OPTIONS_CFG_REG,
-			USBIN_AICL_START_AT_MAX_BIT
-				| USBIN_AICL_ADC_EN_BIT, 0);
+			SUSPEND_ON_COLLAPSE_USBIN_BIT
+			| USBIN_AICL_START_AT_MAX_BIT | USBIN_AICL_RERUN_EN_BIT
+			| USBIN_AICL_ADC_EN_BIT, USBIN_AICL_RERUN_EN_BIT);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure AICL rc=%d\n", rc);
 		return rc;
@@ -2554,7 +2557,7 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
-	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
+	pr_debug("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
 	return rc;

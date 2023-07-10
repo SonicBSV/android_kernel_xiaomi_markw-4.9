@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -79,13 +79,15 @@ struct hwmon_node {
 
 #define UP_WAKE 1
 #define DOWN_WAKE 2
-static DEFINE_SPINLOCK(irq_lock);
+static DEFINE_RAW_SPINLOCK(irq_lock);
 
 static LIST_HEAD(hwmon_list);
 static DEFINE_MUTEX(list_lock);
 
 static int use_cnt;
 static DEFINE_MUTEX(state_lock);
+
+static DEFINE_MUTEX(event_handle_lock);
 
 #define show_attr(name) \
 static ssize_t show_##name(struct device *dev,				\
@@ -287,9 +289,9 @@ int bw_hwmon_sample_end(struct bw_hwmon *hwmon)
 	unsigned long flags;
 	int wake;
 
-	spin_lock_irqsave(&irq_lock, flags);
+	raw_spin_lock_irqsave(&irq_lock, flags);
 	wake = __bw_hwmon_sample_end(hwmon);
-	spin_unlock_irqrestore(&irq_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_lock, flags);
 
 	return wake;
 }
@@ -318,7 +320,7 @@ static unsigned long get_bw_and_set_irq(struct hwmon_node *node,
 	ktime_t ts;
 	unsigned int ms = 0;
 
-	spin_lock_irqsave(&irq_lock, flags);
+	raw_spin_lock_irqsave(&irq_lock, flags);
 
 	if (!hw->set_hw_events) {
 		ts = ktime_get();
@@ -454,7 +456,7 @@ static unsigned long get_bw_and_set_irq(struct hwmon_node *node,
 	node->wake = 0;
 	node->prev_req = req_mbps;
 
-	spin_unlock_irqrestore(&irq_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_lock, flags);
 
 	adj_mbps = req_mbps + node->guard_band_mbps;
 
@@ -811,7 +813,7 @@ static int devfreq_bw_hwmon_ev_handler(struct devfreq *df,
 	struct hwmon_node *node;
 	struct bw_hwmon *hw;
 
-	mutex_lock(&state_lock);
+	mutex_lock(&event_handle_lock);
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
@@ -882,7 +884,7 @@ static int devfreq_bw_hwmon_ev_handler(struct devfreq *df,
 	}
 
 out:
-	mutex_unlock(&state_lock);
+	mutex_unlock(&event_handle_lock);
 
 	return ret;
 }

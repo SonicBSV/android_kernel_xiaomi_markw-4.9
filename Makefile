@@ -719,8 +719,14 @@ export DISABLE_LTO
 export LDFINAL_vmlinux LDFLAGS_FINAL_vmlinux
 endif
 
+ifdef CONFIG_GCC_GRAPHITE
+ifeq ($(cc-name),gcc)
+    KBUILD_CFLAGS	+= -fgraphite-identity -floop-nest-optimize
+  endif
+endif
+
 ifdef CONFIG_CFI_CLANG
-cfi-clang-flags	+= -fsanitize=cfi $(call cc-option, -fsplit-lto-unit)
+cfi-clang-flags	+= -fsanitize=cfi $(call cc-option, -fsplit-lto-unit) -fno-sanitize-blacklist
 DISABLE_CFI_CLANG := -fno-sanitize=cfi
 ifdef CONFIG_MODULES
 cfi-clang-flags	+= -fsanitize-cfi-cross-dso
@@ -754,6 +760,16 @@ KBUILD_CFLAGS   += -O3 -finline-hint-functions
 else
 KBUILD_CFLAGS   += -O2
 endif
+endif
+
+ifdef CONFIG_LLVM_POLLY
+KBUILD_CFLAGS	+= -mllvm -polly \
+		   -mllvm -polly-run-dce \
+		   -mllvm -polly-run-inliner \
+		   -mllvm -polly-ast-use-context \
+		   -mllvm -polly-detect-keep-going \
+		   -mllvm -polly-vectorizer=stripmine \
+		   -mllvm -polly-invariant-load-hoisting
 endif
 
 ifdef CONFIG_CC_WERROR
@@ -1005,6 +1021,10 @@ endif
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
+endif
+
+ifeq ($(CONFIG_RELR),y)
+LDFLAGS_vmlinux	+= --pack-dyn-relocs=relr
 endif
 
 # Default kernel image to build when no specific target is given.

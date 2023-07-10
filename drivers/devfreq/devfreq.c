@@ -609,9 +609,20 @@ struct devfreq *devfreq_add_device(struct device *dev,
 						devfreq->profile->max_state *
 						devfreq->profile->max_state,
 						GFP_KERNEL);
+	if (!devfreq->trans_table) {
+		mutex_unlock(&devfreq->lock);
+		err = -ENOMEM;
+		goto err_devfreq;
+	}
 	devfreq->time_in_state = devm_kzalloc(&devfreq->dev, sizeof(unsigned long) *
 						devfreq->profile->max_state,
 						GFP_KERNEL);
+	if (!devfreq->time_in_state) {
+		mutex_unlock(&devfreq->lock);
+		err = -ENOMEM;
+		goto err_devfreq;
+	}
+
 	devfreq->last_stat_updated = jiffies;
 
 	srcu_init_notifier_head(&devfreq->transition_notifier_list);
@@ -644,7 +655,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 err_init:
 	list_del(&devfreq->node);
 	mutex_unlock(&devfreq_list_lock);
-
+err_devfreq:
 	device_unregister(&devfreq->dev);
 err_dev:
 	if (devfreq)
@@ -1019,6 +1030,9 @@ static ssize_t available_governors_show(struct device *d,
 {
 	struct devfreq *df = to_devfreq(d);
 	ssize_t count = 0;
+
+	if (strstr(dev_name(df->dev.parent), "kgsl"))
+		return sprintf(buf, "%s\n", "msm-adreno-tz powersave performance");
 
 	mutex_lock(&devfreq_list_lock);
 

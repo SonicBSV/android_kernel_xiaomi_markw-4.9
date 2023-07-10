@@ -3137,7 +3137,6 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
 		filter &= ~SHOW_MEM_FILTER_NODES;
 
 	show_mem(filter);
-	show_mem_call_notifiers();
 }
 
 void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
@@ -6880,7 +6879,7 @@ static void __setup_per_zone_wmarks(void)
 			 * value here.
 			 *
 			 * The WMARK_HIGH-WMARK_LOW and (WMARK_LOW-WMARK_MIN)
-			 * deltas control asynch page reclaim, and so should
+			 * deltas control async page reclaim, and so should
 			 * not be capped for highmem.
 			 */
 			unsigned long min_pages;
@@ -7296,7 +7295,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 
 		/*
 		 * Hugepages are not in LRU lists, but they're movable.
-		 * We need not scan over tail pages bacause we don't
+		 * We need not scan over tail pages because we don't
 		 * handle each tail page individually in migration.
 		 */
 		if (PageHuge(page)) {

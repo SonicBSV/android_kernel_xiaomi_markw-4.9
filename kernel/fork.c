@@ -931,7 +931,7 @@ void mmput_async(struct mm_struct *mm)
 {
 	if (atomic_dec_and_test(&mm->mm_users)) {
 		INIT_WORK(&mm->async_put_work, mmput_async_fn);
-		schedule_work(&mm->async_put_work);
+		queue_work(system_highpri_wq, &mm->async_put_work);
 	}
 }
 #endif
@@ -2048,7 +2048,6 @@ bad_fork_cleanup_audit:
 bad_fork_cleanup_perf:
 	perf_event_free_task(p);
 bad_fork_cleanup_policy:
-	free_task_load_ptrs(p);
 #ifdef CONFIG_NUMA
 	mpol_put(p->mempolicy);
 bad_fork_cleanup_threadgroup_lock:
@@ -2088,6 +2087,8 @@ struct task_struct *fork_idle(int cpu)
 	return task;
 }
 
+extern int kp_active_mode(void);
+
 /*
  *  Ok, this is the main fork-routine.
  *
@@ -2104,9 +2105,18 @@ long _do_fork(unsigned long clone_flags,
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
+	unsigned int period;
+
+	period = (kp_active_mode() == 2) ? 50 : (kp_active_mode() == 3) ? 100 : 30;
 
 	/* Boost CPU to the max for 1250 ms when userspace launches an app */
 		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 1250);
+
+#ifdef CONFIG_CPU_INPUT_BOOST
+	/* Boost CPU to the max when userspace launches an app */
+	if (task_is_zygote(current))
+		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, period);
+#endif
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When

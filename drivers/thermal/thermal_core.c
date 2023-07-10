@@ -433,8 +433,8 @@ static void monitor_thermal_zone(struct thermal_zone_device *tz)
 	mutex_unlock(&tz->lock);
 }
 
-static void handle_non_critical_trips(struct thermal_zone_device *tz,
-			int trip, enum thermal_trip_type trip_type)
+static void handle_non_critical_trips(struct thermal_zone_device *tz, int trip)
+
 {
 	tz->governor ? tz->governor->throttle(tz, trip) :
 		       def_governor->throttle(tz, trip);
@@ -453,8 +453,10 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 
 	trace_thermal_zone_trip(tz, trip, trip_type, true);
 
+#ifdef CONFIG_ACPI_THERMAL
 	if (tz->ops->notify)
 		tz->ops->notify(tz, trip, trip_type);
+#endif
 
 	if (trip_type == THERMAL_TRIP_CRITICAL) {
 		dev_emerg(&tz->device,
@@ -477,7 +479,7 @@ void handle_thermal_trip(struct thermal_zone_device *tz, int trip)
 	if (type == THERMAL_TRIP_CRITICAL || type == THERMAL_TRIP_HOT)
 		handle_critical_trips(tz, trip, type);
 	else
-		handle_non_critical_trips(tz, trip, type);
+		handle_non_critical_trips(tz, trip);
 	/*
 	 * Alright, we handled this trip successfully.
 	 * So, start monitoring again.
@@ -2631,13 +2633,8 @@ static int genetlink_init(void)
 	return ret;
 }
 
-static void genetlink_exit(void)
-{
-	genl_unregister_family(&thermal_event_genl_family);
-}
 #else /* !CONFIG_NET */
 static inline int genetlink_init(void) { return 0; }
-static inline void genetlink_exit(void) {}
 static inline int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 		enum events event) { return -ENODEV; }
 #endif /* !CONFIG_NET */
@@ -2771,7 +2768,6 @@ static void thermal_exit(void)
 	unregister_pm_notifier(&thermal_pm_nb);
 	of_thermal_destroy_zones();
 	destroy_workqueue(thermal_passive_wq);
-	genetlink_exit();
 	class_unregister(&thermal_class);
 	thermal_unregister_governors();
 	idr_destroy(&thermal_tz_idr);
@@ -2794,6 +2790,6 @@ exit_netlink:
 	return ret;
 }
 
-subsys_initcall(thermal_init);
+core_initcall(thermal_init);
 fs_initcall(thermal_netlink_init);
 module_exit(thermal_exit);

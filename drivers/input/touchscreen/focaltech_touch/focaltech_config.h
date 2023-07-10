@@ -47,6 +47,7 @@
 #define _FT5526     0x55260002
 #define _FT5526I    0x5526B002
 #define _FT5446     0x54460002
+#define _FT5336     0x53360002
 #define _FT5346     0x53460002
 #define _FT5446I    0x5446B002
 #define _FT5346I    0x5346B002
@@ -85,7 +86,7 @@
 /*
  * choose your ic chip type of focaltech
  */
-#define FTS_CHIP_TYPE   _FT5346
+#define FTS_CHIP_TYPE   _FT5336
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/

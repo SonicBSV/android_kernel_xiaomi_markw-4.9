@@ -2771,6 +2771,7 @@ static struct platform_driver msm_fe_dai_driver = {
 		.name = "msm-dai-fe",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_fe_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
