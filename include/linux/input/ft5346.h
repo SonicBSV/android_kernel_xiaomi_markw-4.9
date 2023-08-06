@@ -242,6 +242,11 @@ struct ft5x06_ts_platform_data {
 	u32 reset_gpio;
 	u32 reset_gpio_flags;
 	u32 family_id;
+	bool have_key;
+	u32 key_number;
+	u32 keys[4];
+	u32 key_y_coord;
+	u32 key_x_coords[4];
 	u32 x_max;
 	u32 y_max;
 	u32 x_min;
@@ -289,6 +294,7 @@ struct ft5x06_ts_data {
 	struct pinctrl *ts_pinctrl;
 	struct pinctrl_state *gpio_state_active;
 	struct pinctrl_state *gpio_state_suspend;
+	int key_state;
 };
 
 

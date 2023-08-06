@@ -33,6 +33,11 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 
+#define FTS_KEY_WIDTH_X		50
+#define FTS_KEY_WIDTH_Y		10
+
+#define EVENT_DOWN(status)	((status == FT_TOUCH_DOWN) || (status == FT_TOUCH_CONTACT))
+
 #if WT_CTP_GESTURE_SUPPORT
 #define FTS_GESTRUE_POINTS 				255
 #define FTS_GESTRUE_POINTS_HEADER 		8
@@ -404,6 +409,62 @@ static int fts_read_Gesturedata(struct input_dev *ip_dev)
 }
 #endif
 
+static int ft5x06_input_report_key(struct ft5x06_ts_data *data, u32 x, u32 y, u32 status)
+{
+	int i;
+
+	if (!data->pdata->have_key)
+		return 0;
+
+	if ((y < data->pdata->key_y_coord - FTS_KEY_WIDTH_Y) ||
+	    (y > data->pdata->key_y_coord + FTS_KEY_WIDTH_Y))
+		return 0;
+
+	for (i = 0; i < data->pdata->key_number; i++) {
+		if ((x < data->pdata->key_x_coords[i] - FTS_KEY_WIDTH_X) ||
+		    (x > data->pdata->key_x_coords[i] + FTS_KEY_WIDTH_X))
+			continue;
+
+		if (EVENT_DOWN(status) && !(data->key_state & (1 << i))) {
+			input_report_key(data->input_dev, data->pdata->keys[i], 1);
+			data->key_state |= (1 << i);
+		} else if (!EVENT_DOWN(status) && (data->key_state & (1 << i))) {
+			input_report_key(data->input_dev, data->pdata->keys[i], 0);
+			data->key_state &= ~(1 << i);
+		}
+	}
+	return 1;
+}
+
+static void ft5x06_input_release_all_keys(struct ft5x06_ts_data *data)
+{
+	int i, cnt = 0;
+
+	CTP_DEBUG("Keys All Up!");
+	for (i = 0; i < data->pdata->key_number; i++) {
+		if (!(data->key_state & (1 << i)))
+			continue;
+		input_report_key(data->input_dev, data->pdata->keys[i], 0);
+		cnt++;
+	}
+	data->key_state = 0;
+	if (cnt > 0)
+		input_sync(data->input_dev);
+}
+
+static void ft5x06_release_all_finger(struct ft5x06_ts_data *data)
+{
+	int i;
+
+	/* release all touches */
+	for (i = 0; i < data->pdata->num_max_touches; i++) {
+		input_mt_slot(data->input_dev, i);
+		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, 0);
+	}
+	input_mt_report_pointer_emulation(data->input_dev, false);
+	input_report_key(data->input_dev, BTN_TOUCH, 0);
+	input_sync(data->input_dev);
+}
 
 static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 {
@@ -413,6 +474,7 @@ static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 	u32 id, x, y, status, num_touches;
 	u8 reg = 0x00, *buf, state;
 	bool update_input = false;
+	int keys = 0;
 
 	if (!data) {
 		CTP_ERROR("%s: Invalid data\n", __func__);
@@ -435,6 +497,7 @@ static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 
 	ip_dev = data->input_dev;
 	buf = data->tch_data;
+	memset(buf, 0xff, data->tch_data_len);
 
 	rc = ft5x06_i2c_read(data->client, &reg, 1,
 			buf, data->tch_data_len);
@@ -462,8 +525,6 @@ static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 		if (id >= FT_MAX_ID)
 			break;
 
-		update_input = true;
-
 		x = (buf[FT_TOUCH_X_H_POS + FT_ONE_TCH_LEN * i] & 0x0F) << 8 |
 		    (buf[FT_TOUCH_X_L_POS + FT_ONE_TCH_LEN * i]);
 		y = (buf[FT_TOUCH_Y_H_POS + FT_ONE_TCH_LEN * i] & 0x0F) << 8 |
@@ -476,6 +537,13 @@ static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 		/* invalid combination */
 		if (!num_touches && !status && !id)
 			break;
+
+		if (ft5x06_input_report_key(data, x, y, status)) {
+			keys++;
+			continue;
+		}
+
+		update_input = true;
 		input_mt_slot(ip_dev, id);
 		if (status == FT_TOUCH_DOWN || status == FT_TOUCH_CONTACT) {
 			input_mt_report_slot_state(ip_dev, MT_TOOL_FINGER, 1);
@@ -491,13 +559,13 @@ static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 		input_sync(ip_dev);
 	}
 
-	if (num_touches == 0) {
-		 for (i = 0; i < data->pdata->num_max_touches; i++) {
-			input_mt_slot(ip_dev, i);
-			input_mt_report_slot_state(ip_dev, MT_TOOL_FINGER, 0);
-		}
-		input_mt_report_pointer_emulation(ip_dev, false);
+	if (keys == 0)
+		ft5x06_input_release_all_keys(data);
+	else if (!update_input)
 		input_sync(ip_dev);
+
+	if (num_touches == 0) {
+		ft5x06_release_all_finger(data);
 	}
 	return IRQ_HANDLED;
 }
@@ -689,6 +757,9 @@ static int ft5x06_ts_suspend(struct device *dev)
 		return 0;
 	}
 
+	ft5x06_release_all_finger(data);
+	ft5x06_input_release_all_keys(data);
+
 #if WT_CTP_GESTURE_SUPPORT
 	if (gtp_gesture_onoff == '1') {
 		ft5x0x_write_reg(gesture_client, 0xd0, 0x01);
@@ -702,19 +773,12 @@ static int ft5x06_ts_suspend(struct device *dev)
 		}
 		enable_irq_wake(data->client->irq);
 		CTP_DEBUG("in suspend gesture\n");
+		data->suspended = true;
 		return 0;
 	}
 #endif
 
 	disable_irq(data->client->irq);
-
-	/* release all touches */
-	for (i = 0; i < data->pdata->num_max_touches; i++) {
-		input_mt_slot(data->input_dev, i);
-		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, 0);
-	}
-	input_mt_report_pointer_emulation(data->input_dev, false);
-	input_sync(data->input_dev);
 
 	if (gpio_is_valid(data->pdata->reset_gpio)) {
 		txbuf[0] = FT_REG_PMODE;
@@ -813,7 +877,8 @@ static int ft5x06_ts_resume(struct device *dev)
 		pre_charger_status = is_charger_plug;
 #endif
 
-
+	ft5x06_release_all_finger(data);
+	ft5x06_input_release_all_keys(data);
 	data->suspended = false;
 
 	return 0;
@@ -2081,6 +2146,37 @@ static int ft5x06_parse_dt(struct device *dev,
 	if (rc)
 		return rc;
 
+	/* key */
+	pdata->have_key = of_property_read_bool(np, "ftech,have-key");
+	if (pdata->have_key) {
+		rc = of_property_read_u32(np, "ftech,key-number",
+					&pdata->key_number);
+		if (rc)
+			dev_err(dev, "Key number undefined!\n");
+
+		rc = of_property_read_u32_array(np, "ftech,keys",
+					pdata->keys, pdata->key_number);
+		if (rc)
+			dev_err(dev, "Keys undefined!\n");
+
+		rc = of_property_read_u32(np, "ftech,key-y-coord",
+					&pdata->key_y_coord);
+		if (rc)
+			dev_err(dev, "Key Y Coord undefined!\n");
+
+		rc = of_property_read_u32_array(np, "ftech,key-x-coords",
+				pdata->key_x_coords, pdata->key_number);
+		if (rc)
+			dev_err(dev, "Key X Coords undefined!\n");
+
+		dev_info(dev, "%d: (%d, %d, %d), [%d, %d, %d][%d]\n",
+				  pdata->key_number, pdata->keys[0],
+				  pdata->keys[1], pdata->keys[2],
+				  pdata->key_x_coords[0],
+				  pdata->key_x_coords[1],
+				  pdata->key_x_coords[2],
+				  pdata->key_y_coord);
+	}
 
 	pdata->i2c_pull_up = of_property_read_bool(np,
 			"ftech,i2c-pull-up");
@@ -2815,6 +2911,12 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 	input_set_drvdata(input_dev, data);
 
 	__set_bit(EV_KEY, input_dev->evbit);
+	if (data->pdata->have_key) {
+		dev_info(&client->dev, "set key capabilities\n");
+		for (len = 0; len < data->pdata->key_number; len++)
+			input_set_capability(input_dev, EV_KEY,
+					data->pdata->keys[len]);
+	}
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
