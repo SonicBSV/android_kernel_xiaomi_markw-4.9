@@ -77,7 +77,8 @@
 #define FTS_WORKQUEUE_NAME                  "fts_wq"
 
 #define FTS_MAX_POINTS                      10
-#define FTS_KEY_WIDTH                       50
+#define FTS_KEY_WIDTH_X                     50
+#define FTS_KEY_WIDTH_Y                     10
 #define FTS_ONE_TCH_LEN                     6
 #define POINT_READ_BUF  (3 + FTS_ONE_TCH_LEN * FTS_MAX_POINTS)
 
@@ -96,6 +97,8 @@
 #define FTS_TOUCH_DOWN      0
 #define FTS_TOUCH_UP        1
 #define FTS_TOUCH_CONTACT   2
+
+#define EVENT_DOWN(flag)    ((flag == FTS_TOUCH_DOWN) || (flag == FTS_TOUCH_CONTACT))
 
 #define FTS_SYSFS_ECHO_ON(buf)      ((strncasecmp(buf, "1", 1)  == 0) || \
 					(strncasecmp(buf, "on", 2) == 0))
@@ -163,6 +166,7 @@ struct fts_ts_data {
 	u8 fw_vendor_id;
 	int touchs;
 	int irq_disable;
+	int key_state;
 
 #if defined(CONFIG_FB)
 	struct notifier_block fb_notif;
