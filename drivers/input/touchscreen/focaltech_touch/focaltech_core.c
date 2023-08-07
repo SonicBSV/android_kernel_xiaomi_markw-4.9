@@ -78,6 +78,7 @@ char g_sz_debug[1024] = {0};
 static void fts_release_all_finger(void);
 static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
+static void fts_input_release_all_keys(struct fts_ts_data *data);
 
 
 static int fts_initialize_pinctrl(struct fts_ts_data *data)
@@ -454,6 +455,7 @@ static void fts_release_all_finger(void)
 	input_mt_sync(fts_input_dev);
 #endif
 	input_report_key(fts_input_dev, BTN_TOUCH, 0);
+	fts_input_release_all_keys(fts_wq_data);
 	input_sync(fts_input_dev);
 	mutex_unlock(&fts_wq_data->report_mutex);
 }
@@ -482,54 +484,48 @@ static void fts_show_touch_buffer(u8 *buf, int point_num)
 }
 #endif
 
-static int fts_input_dev_report_key_event(struct ts_event *event,
-					struct fts_ts_data *data)
+static int fts_input_report_keys(struct fts_ts_data *data,
+				 int flags, int x, int y)
 {
 	int i;
 
 	if (!data->pdata->have_key)
-		return -EINVAL;
-
-	if ((1 == event->touch_point || 1 == event->point_num) &&
-		 (event->au16_y[0] == data->pdata->key_y_coord)) {
-
-		if (event->point_num == 0) {
-			FTS_DEBUG("Keys All Up!");
-			for (i = 0; i < data->pdata->key_number; i++) {
-				input_report_key(data->input_dev,
-					data->pdata->keys[i], 0);
-			}
-
-			input_sync(data->input_dev);
-			return 0;
-		}
-		for (i = 0; i < data->pdata->key_number; i++) {
-			if (event->au16_x[0] >  (data->pdata->key_x_coords[i]
-					- FTS_KEY_WIDTH) && (event->au16_x[0] <
-					(data->pdata->key_x_coords[i]
-					+ FTS_KEY_WIDTH))) {
-				if (event->au8_touch_event[0] == 0 ||
-					event->au8_touch_event[0] == 2) {
-					input_report_key(data->input_dev,
-						data->pdata->keys[i], 1);
-					FTS_DEBUG("Key%d(%d, %d) DOWN!",
-							i, event->au16_x[0],
-							event->au16_y[0]);
-				} else {
-					input_report_key(data->input_dev,
-						data->pdata->keys[i], 0);
-					FTS_DEBUG("Key%d(%d, %d) Up!",
-							i, event->au16_x[0],
-							event->au16_y[0]);
-				}
-				break;
-			}
-		}
-		input_sync(data->input_dev);
 		return 0;
-	}
 
-	return -EINVAL;
+	if ((y < data->pdata->key_y_coord - FTS_KEY_WIDTH_Y) ||
+	    (y > data->pdata->key_y_coord + FTS_KEY_WIDTH_Y))
+		return 0;
+
+	for (i = 0; i < data->pdata->key_number; i++) {
+		if ((x < data->pdata->key_x_coords[i] - FTS_KEY_WIDTH_X) ||
+		    (x > data->pdata->key_x_coords[i] + FTS_KEY_WIDTH_X))
+			continue;
+
+		if (EVENT_DOWN(flags) && !(data->key_state & (1 << i))) {
+			input_report_key(data->input_dev, data->pdata->keys[i], 1);
+			data->key_state |= (1 << i);
+			FTS_DEBUG("Key%d(%d, %d) DOWN!", i, x, y);
+		} else if (!EVENT_DOWN(flags) && (data->key_state & (1 << i))) {
+			input_report_key(data->input_dev, data->pdata->keys[i], 0);
+			data->key_state &= ~(1 << i);
+			FTS_DEBUG("Key%d(%d, %d) Up!", i, x, y);
+		}
+		break;
+	}
+	return 1;
+}
+
+static void fts_input_release_all_keys(struct fts_ts_data *data)
+{
+	int i;
+
+	FTS_DEBUG("Keys All Up!");
+	for (i = 0; i < data->pdata->key_number; i++) {
+		if (!(data->key_state & (1 << i)))
+			continue;
+		input_report_key(data->input_dev, data->pdata->keys[i], 0);
+	}
+	data->key_state = 0;
 }
 
 #if FTS_MT_PROTOCOL_B_EN
@@ -539,10 +535,18 @@ static int fts_input_dev_report_b(struct ts_event *event,
 	int i = 0;
 	int uppoint = 0;
 	int touchs = 0;
+	int keys = 0;
 
 	for (i = 0; i < event->touch_point; i++) {
 		if (event->au8_finger_id[i] >= data->pdata->max_touch_number)
 			break;
+
+		if (fts_input_report_keys(data, event->au8_touch_event[i],
+					  event->au16_x[i], event->au16_y[i]))
+		{
+			keys++;
+			continue;
+		}
 
 		input_mt_slot(data->input_dev, event->au8_finger_id[i]);
 
@@ -619,13 +623,16 @@ static int fts_input_dev_report_b(struct ts_event *event,
 	}
 
 	data->touchs = touchs;
-	if (event->touch_point == uppoint) {
+	if (event->touch_point == uppoint + keys) {
 		FTS_DEBUG("Points All Up!");
 		input_report_key(data->input_dev, BTN_TOUCH, 0);
 	} else {
 		input_report_key(data->input_dev, BTN_TOUCH,
 				event->touch_point > 0);
 	}
+
+	if (keys == 0)
+		fts_input_release_all_keys(data);
 
 	input_sync(data->input_dev);
 
@@ -640,8 +647,15 @@ static int fts_input_dev_report_a(struct ts_event *event,
 	int i = 0;
 	int uppoint = 0;
 	int touchs = 0;
+	int keys = 0;
 
 	for (i = 0; i < event->touch_point; i++) {
+		if (fts_input_report_keys(data, event->au8_touch_event[i],
+					  event->au16_x[i], event->au16_y[i]))
+		{
+			keys++;
+			continue;
+		}
 
 		if (event->au8_touch_event[i] == FTS_TOUCH_DOWN ||
 			event->au8_touch_event[i] == FTS_TOUCH_CONTACT) {
@@ -694,7 +708,7 @@ static int fts_input_dev_report_a(struct ts_event *event,
 	}
 
 	data->touchs = touchs;
-	if (event->touch_point == uppoint) {
+	if (event->touch_point == uppoint + keys) {
 		FTS_DEBUG("Points All Up!");
 		input_report_key(data->input_dev, BTN_TOUCH, 0);
 		input_mt_sync(data->input_dev);
@@ -702,6 +716,9 @@ static int fts_input_dev_report_a(struct ts_event *event,
 		input_report_key(data->input_dev, BTN_TOUCH,
 				event->touch_point > 0);
 	}
+
+	if (keys == 0)
+		fts_input_release_all_keys(data);
 
 	input_sync(data->input_dev);
 
@@ -842,9 +859,6 @@ static void fts_report_value(struct fts_ts_data *data)
 
 	FTS_DEBUG("point number: %d, touch point: %d", event->point_num,
 			  event->touch_point);
-
-	if (fts_input_dev_report_key_event(event, data) == 0)
-		return;
 
 #if FTS_MT_PROTOCOL_B_EN
 	fts_input_dev_report_b(event, data);
@@ -1432,6 +1446,8 @@ static int fts_ts_suspend(struct device *dev)
 		FTS_FUNC_EXIT();
 		return -EINVAL;
 	}
+
+	fts_release_all_finger();
 
 #if FTS_ESDCHECK_EN
 	fts_esdcheck_suspend();
