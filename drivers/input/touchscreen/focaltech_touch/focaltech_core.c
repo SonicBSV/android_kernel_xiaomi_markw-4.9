@@ -429,8 +429,8 @@ static int fts_input_dev_report_key_event(struct ts_event *event,
 					- FTS_KEY_WIDTH) && (event->au16_x[0] <
 					(data->pdata->key_x_coords[i]
 					+ FTS_KEY_WIDTH))) {
-				if (event->au8_touch_event[i] == 0 ||
-					event->au8_touch_event[i] == 2) {
+				if (event->au8_touch_event[0] == 0 ||
+					event->au8_touch_event[0] == 2) {
 					input_report_key(data->input_dev,
 						data->pdata->keys[i], 1);
 					FTS_DEBUG("Key%d(%d, %d) DOWN!",
