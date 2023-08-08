@@ -614,6 +614,38 @@ pwr_deinit:
 	return 0;
 }
 
+static int ft5x06_ts_initialize_pinctrl(struct ft5x06_ts_data *data)
+{
+	int ret = 0;
+	struct device *dev = &data->client->dev;
+
+	data->ts_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(data->ts_pinctrl)) {
+		dev_err(&data->client->dev, "Target does not use pinctrl\n");
+		ret = PTR_ERR(data->ts_pinctrl);
+		data->ts_pinctrl = NULL;
+		return ret;
+	}
+
+	data->gpio_state_active = pinctrl_lookup_state(data->ts_pinctrl, "pmx_ts_active");
+	if (IS_ERR_OR_NULL(data->gpio_state_active)) {
+		dev_err(&data->client->dev, "Can not get ts default pinstate\n");
+		ret = PTR_ERR(data->gpio_state_active);
+		data->ts_pinctrl = NULL;
+		return ret;
+	}
+
+	data->gpio_state_suspend = pinctrl_lookup_state(data->ts_pinctrl, "pmx_ts_suspend");
+	if (IS_ERR_OR_NULL(data->gpio_state_suspend)) {
+		dev_err(&data->client->dev, "Can not get ts sleep pinstate\n");
+		ret = PTR_ERR(data->gpio_state_suspend);
+		data->ts_pinctrl = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
 static int ft5x06_ts_pinctrl_select(struct ft5x06_ts_data *ft5x06_data,
 			bool on)
 {
@@ -2675,57 +2707,21 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	input_dev = input_allocate_device();
-	if (!input_dev) {
-		return -ENOMEM;
-	}
-
-	data->input_dev = input_dev;
 	data->client = client;
 	data->pdata = pdata;
-
-	input_dev->name = "ft5346";
-	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
-	input_dev->event = fts_input_event;
-	input_set_drvdata(input_dev, data);
 	i2c_set_clientdata(client, data);
-
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
-	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
-
-#if WT_CTP_GESTURE_SUPPORT
-		input_set_capability(input_dev, EV_KEY, KEY_POWER);
-		input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
-
-		__set_bit(KEY_WAKEUP, input_dev->keybit);
-#endif
-
-	input_mt_init_slots(input_dev, pdata->num_max_touches, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->x_min,
-			pdata->x_max, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, pdata->y_min,
-			pdata->y_max, 0, 0);
-
-	err = input_register_device(input_dev);
-	if (err) {
-		dev_err(&client->dev, "Input device registration failed\n");
-		goto free_inputdev;
-	}
 
 	if (pdata->power_init) {
 		err = pdata->power_init(true);
 		if (err) {
 			dev_err(&client->dev, "power init failed");
-			goto unreg_inputdev;
+			goto pwr_fail;
 		}
 	} else {
 		err = ft5x06_power_init(data, true);
 		if (err) {
 			dev_err(&client->dev, "power init failed");
-			goto unreg_inputdev;
+			goto pwr_fail;
 		}
 	}
 
@@ -2742,11 +2738,23 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 			goto pwr_deinit;
 		}
 	}
+
+	err = ft5x06_ts_initialize_pinctrl(data);
+	if (err || !data->ts_pinctrl) {
+		CTP_ERROR("Initialize pinctrl failed\n");
+	} else {
+		err = ft5x06_ts_pinctrl_select(data, false);
+		if (err < 0) {
+			CTP_ERROR("Cannot get idle pinctrl state\n");
+			goto free_pinctrl;
+		}
+	}
+
 	if (gpio_is_valid(pdata->irq_gpio)) {
 		err = gpio_request(pdata->irq_gpio, "ft5x06_irq_gpio");
 		if (err) {
 			dev_err(&client->dev, "irq gpio request failed");
-			goto pwr_off;
+			goto free_pinctrl;
 		}
 		err = gpio_direction_input(pdata->irq_gpio);
 		if (err) {
@@ -2792,13 +2800,51 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 
 	data->family_id = pdata->family_id;
 
+	input_dev = input_allocate_device();
+	if (!input_dev) {
+		err = -ENOMEM;
+		goto free_reset_gpio;
+	}
+
+	data->input_dev = input_dev;
+
+	input_dev->name = "ft5346";
+	input_dev->id.bustype = BUS_I2C;
+	input_dev->dev.parent = &client->dev;
+	input_dev->event = fts_input_event;
+	input_set_drvdata(input_dev, data);
+
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(EV_ABS, input_dev->evbit);
+	__set_bit(BTN_TOUCH, input_dev->keybit);
+	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
+#if WT_CTP_GESTURE_SUPPORT
+		input_set_capability(input_dev, EV_KEY, KEY_POWER);
+		input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
+
+		__set_bit(KEY_WAKEUP, input_dev->keybit);
+#endif
+
+	input_mt_init_slots(input_dev, pdata->num_max_touches, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->x_min,
+			pdata->x_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, pdata->y_min,
+			pdata->y_max, 0, 0);
+
+	err = input_register_device(input_dev);
+	if (err) {
+		dev_err(&client->dev, "Input device registration failed\n");
+		goto free_reset_gpio;
+	}
+
 	err = request_threaded_irq(client->irq, NULL,
 		ft5x06_ts_interrupt,
 		pdata->irq_gpio_flags | IRQF_ONESHOT,
 		client->dev.driver->name, data);
 	if (err) {
 		dev_err(&client->dev, "request irq failed\n");
-		goto free_reset_gpio;
+		goto free_input;
 	}
 
 	disable_irq(data->client->irq);
@@ -2867,7 +2913,7 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 			FT_INFO_MAX_LEN, GFP_KERNEL);
 	if (!data->ts_info) {
 		dev_err(&client->dev, "Not enough memory\n");
-		goto free_irq_gpio;
+		goto free_irq;
 	}
 
 	/*get some register information */
@@ -2961,30 +3007,30 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 
 	return 0;
 
-
+free_irq:
+	free_irq(client->irq, data);
+free_input:
+	input_unregister_device(input_dev);
+	i2c_set_clientdata(client, NULL);
 free_reset_gpio:
 	if (gpio_is_valid(pdata->reset_gpio))
 		gpio_free(pdata->reset_gpio);
-	if (data->ts_pinctrl) {
-		err = ft5x06_ts_pinctrl_select(data, false);
-		if (err < 0)
-		    CTP_ERROR("Cannot get idle pinctrl state\n");
-	}
 free_irq_gpio:
 	if (gpio_is_valid(pdata->irq_gpio))
 		gpio_free(pdata->irq_gpio);
+free_pinctrl:
 	if (data->ts_pinctrl) {
 		err = ft5x06_ts_pinctrl_select(data, false);
 		if (err < 0)
 		    CTP_ERROR("Cannot get idle pinctrl state\n");
+		devm_pinctrl_put(data->ts_pinctrl);
 	}
-pwr_off:
+	if (!data->pdata->power_on)
+		ft5x06_power_on(data, false);
 pwr_deinit:
-unreg_inputdev:
-	input_unregister_device(input_dev);
-	input_dev = NULL;
-free_inputdev:
-	input_free_device(input_dev);
+	if (!data->pdata->power_init)
+		ft5x06_power_init(data, false);
+pwr_fail:
 	return err;
 }
 
@@ -3008,7 +3054,10 @@ static int ft5x06_ts_remove(struct i2c_client *client)
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&data->early_suspend);
 #endif
+
 	free_irq(client->irq, data);
+	input_unregister_device(data->input_dev);
+	i2c_set_clientdata(data->client, NULL);
 
 	if (gpio_is_valid(data->pdata->reset_gpio))
 		gpio_free(data->pdata->reset_gpio);
@@ -3020,8 +3069,13 @@ static int ft5x06_ts_remove(struct i2c_client *client)
 		retval = ft5x06_ts_pinctrl_select(data, false);
 		if (retval < 0)
 		    CTP_ERROR("Cannot get idle pinctrl state\n");
+		devm_pinctrl_put(data->ts_pinctrl);
 	}
-	input_unregister_device(data->input_dev);
+
+	if (!data->pdata->power_on)
+		ft5x06_power_on(data, false);
+	if (!data->pdata->power_init)
+		ft5x06_power_init(data, false);
 
 	return 0;
 }
