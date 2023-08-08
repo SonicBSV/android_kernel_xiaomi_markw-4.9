@@ -341,9 +341,9 @@ static void check_gesture(int gesture_id, struct input_dev *ip_dev)
 	switch (gesture_id) {
 	case 0x24:
 		gtp_gesture_value = 'K';
-		input_report_key(ip_dev, KEYCODE_WAKEUP, 1);
+		input_report_key(ip_dev, KEY_WAKEUP, 1);
 		input_sync(ip_dev);
-		input_report_key(ip_dev, KEYCODE_WAKEUP, 0);
+		input_report_key(ip_dev, KEY_WAKEUP, 0);
 		input_sync(ip_dev);
 		break;
 	default:
@@ -2698,9 +2698,9 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 
 #if WT_CTP_GESTURE_SUPPORT
 		input_set_capability(input_dev, EV_KEY, KEY_POWER);
-		input_set_capability(input_dev, EV_KEY, KEYCODE_WAKEUP);
+		input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
 
-		__set_bit(KEYCODE_WAKEUP, input_dev->keybit);
+		__set_bit(KEY_WAKEUP, input_dev->keybit);
 #endif
 
 	input_mt_init_slots(input_dev, pdata->num_max_touches, 0);
