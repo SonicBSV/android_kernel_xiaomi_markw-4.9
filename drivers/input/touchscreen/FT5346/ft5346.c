@@ -2602,7 +2602,7 @@ static void ft5x0x_release_apk_debug_channel(void)
 
 #endif
 
-#if WT_CTP_GESTURE_SUPPORT
+#if WT_CTP_GESTURE_SUPPORT && !defined(CONFIG_MACH_XIAOMI)
 static ssize_t proc_gesture_data_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
 	int num = 0;
@@ -3067,7 +3067,7 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 	create_ctp_proc();
 #endif
 
-#if WT_CTP_GESTURE_SUPPORT
+#if WT_CTP_GESTURE_SUPPORT && !defined(CONFIG_MACH_XIAOMI)
 	Ctp_Gesture_Fucntion_Proc_File();
 #endif
 
@@ -3182,6 +3182,52 @@ static int ft5x06_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI
+extern bool xiaomi_ts_probed;
+extern struct semaphore xiaomi_ts_probe_sem;
+extern void xiaomi_ts_set_gesture_on_off_callback(void (*callback)(void*, int), void *priv);
+
+static void gesture_on_off_callback(void *priv, int on_off)
+{
+	gtp_gesture_onoff = on_off ? '1' : '0';
+}
+
+static int ft5x06_ts_probe_xiaomi(struct i2c_client *client,
+				const struct i2c_device_id *id)
+{
+	int ret = -ENODEV;
+
+	down(&xiaomi_ts_probe_sem);
+	if (xiaomi_ts_probed)
+		goto end;
+
+	ret = ft5x06_ts_probe(client, id);
+	if (ret != 0)
+		goto end;
+
+	xiaomi_ts_probed = true;
+#if WT_CTP_GESTURE_SUPPORT
+	xiaomi_ts_set_gesture_on_off_callback(gesture_on_off_callback, NULL);
+#endif
+
+end:
+	up(&xiaomi_ts_probe_sem);
+	return ret;
+}
+
+static int ft5x06_ts_remove_xiaomi(struct i2c_client *client)
+{
+	int ret;
+
+	down(&xiaomi_ts_probe_sem);
+	xiaomi_ts_set_gesture_on_off_callback(NULL, NULL);
+	ret = ft5x06_ts_remove(client);
+	xiaomi_ts_probed = false;
+	up(&xiaomi_ts_probe_sem);
+	return ret;
+}
+#endif
+
 static const struct i2c_device_id ft5x06_ts_id[] = {
 	{"ft5x06_720p", 0},
 	{},
@@ -3199,8 +3245,13 @@ static struct of_device_id ft5x06_match_table[] = {
 #endif
 
 static struct i2c_driver ft5x06_ts_driver = {
+#ifdef CONFIG_MACH_XIAOMI
+	.probe = ft5x06_ts_probe_xiaomi,
+	.remove = ft5x06_ts_remove_xiaomi,
+#else
 	.probe = ft5x06_ts_probe,
 	.remove = ft5x06_ts_remove,
+#endif
 	.driver = {
 		.name = "ft5x06_720p",
 		.owner = THIS_MODULE,
