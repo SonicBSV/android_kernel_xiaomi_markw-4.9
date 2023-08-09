@@ -522,6 +522,7 @@ static void _remove_devfreq(struct devfreq *devfreq)
 
 	mutex_destroy(&devfreq->lock);
 	mutex_destroy(&devfreq->event_lock);
+	srcu_cleanup_notifier_head(&devfreq->transition_notifier_list);
 	kfree(devfreq);
 }
 
