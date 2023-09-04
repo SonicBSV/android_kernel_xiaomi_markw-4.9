@@ -133,11 +133,7 @@ struct key_security_struct {
 };
 
 struct bpf_security_struct {
-	u32 sid;  /* SID of bpf obj creator */
-};
-
-struct perf_event_security_struct {
-	u32 sid;  /* SID of perf_event obj creator */
+	u32 sid;  /*SID of bpf obj creater*/
 };
 
 extern unsigned int selinux_checkreqprot;

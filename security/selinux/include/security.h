@@ -68,20 +68,17 @@ extern int selinux_enabled;
 enum {
 	POLICYDB_CAPABILITY_NETPEER,
 	POLICYDB_CAPABILITY_OPENPERM,
-	POLICYDB_CAPABILITY_COMPAT1,
+	POLICYDB_CAPABILITY_REDHAT1,
 	POLICYDB_CAPABILITY_ALWAYSNETWORK,
-	POLICYDB_CAPABILITY_COMPAT2,
-	POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
-extern const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
-
+extern int selinux_android_netlink_route;
+extern int selinux_android_netlink_getneigh;
 extern int selinux_policycap_netpeer;
 extern int selinux_policycap_openperm;
 extern int selinux_policycap_alwaysnetwork;
-extern int selinux_policycap_nnp_nosuid_transition;
 
 /*
  * type_datum properties
@@ -267,6 +264,7 @@ extern struct vfsmount *selinuxfs_mount;
 extern void selnl_notify_setenforce(int val);
 extern void selnl_notify_policyload(u32 seqno);
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
+extern void selinux_nlmsg_init(void);
 
 #endif /* _SELINUX_SECURITY_H_ */
 
