@@ -2319,7 +2319,7 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #ifdef CONFIG_MSM_AVTIMER
 void msm_isp_end_avtimer(void)
 {
-	msm_isp_stop_avtimer();
+	avcs_core_disable_power_collapse(0);
 }
 #else
 void msm_isp_end_avtimer(void)
