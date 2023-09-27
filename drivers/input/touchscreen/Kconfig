@@ -1374,7 +1374,6 @@ config TOUCHSCREEN_SYNAPTICS_DSX
           If unsure, say N.
 
 source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
-source "drivers/input/touchscreen/focaltech_touch/Kconfig"
 
 config TOUCHSCREEN_FT5X06
        tristate "FocalTech touchscreens"
@@ -1451,9 +1450,5 @@ config TOUCHSCREEN_RAYDIUM_CHIPSET
 	  Say Y here if you have a Raydium WT030 CHIPSET touchscreen.
 
 	  If unsure, say N.
-
-source "drivers/input/touchscreen/Atmel308U/Kconfig"
-
-source "drivers/input/touchscreen/FT5346/Kconfig"
 
 endif
