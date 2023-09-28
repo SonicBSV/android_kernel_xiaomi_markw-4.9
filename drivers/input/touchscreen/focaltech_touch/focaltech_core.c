@@ -1749,23 +1749,6 @@ static int fts_input_report_key(struct fts_ts_data *data, int index)
 	int *x_dim = &data->pdata->key_x_coords[0];
 	int *y_dim = &data->pdata->key_y_coords[0];
 
-	if (y == 2000) {
-			data->events[index].y = 1344;
-			switch (x) {
-				case 180:
-					data->events[index].x = 150;
-					break;
-				case 540:
-					data->events[index].x = 360;
-					break;
-				case 900:
-					data->events[index].x = 580;
-					break;
-				default:
-					break;
-			}
-	}
-
 	if (data->pdata->key_is_vkeys)
 		return fts_input_report_key_vkeys(data, index);
 
