@@ -295,7 +295,7 @@
 	status = "okay";
 	/delete-node/ synaptics@4b;
 	focaltech@38{
-		compatible = "focaltech,fts";
+		compatible = "focaltech,fts_ts";
 		reg = <0x38>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <65 0x2008>;
@@ -310,12 +310,13 @@
 		focaltech,irq-gpio = <&tlmm 65 0x2008>;
 		focaltech,display-coords = <0 0 1080 1920>;
 		focaltech,max-touch-number = <10>;
-		focaltech,wakeup-gestures-en;
 		focaltech,have-key;
 		focaltech,key-number = <3>;
 		focaltech,keys = <139 172 158>;
-		focaltech,key-y-coord = <2000>;
 		focaltech,key-x-coords = <180 540 900>;
+		focaltech,key-y-coords = <2000 2000 2000>;
+		focaltech,use-old-touchdata-reading-behavior;
+		focaltech,ignore-id-check;
 	};
 	atmel_mxt_ts@4a {
 		compatible = "atmel,mxt-ts";
