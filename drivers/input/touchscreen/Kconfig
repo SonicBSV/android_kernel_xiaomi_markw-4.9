@@ -1451,4 +1451,12 @@ config TOUCHSCREEN_RAYDIUM_CHIPSET
 
 	  If unsure, say N.
 
+config TOUCHSCREEN_SYSCTL
+	bool "Sysctl control interface for Xiaomi touchscreens"
+	help
+	  Say Y here to enable sysctl control interface for Xiaomi touchscreens
+
+source "drivers/input/touchscreen/Atmel308U/Kconfig"
+source "drivers/input/touchscreen/focaltech_touch/Kconfig"
+
 endif

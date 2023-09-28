@@ -108,3 +108,7 @@ obj-$(CONFIG_TOUCHSCREEN_GT9XX_v28)		+= gt9xx_v2.8/
 obj-$(CONFIG_TOUCHSCREEN_HIMAX_CHIPSET)	+= hxchipset/
 obj-$(CONFIG_TOUCHSCREEN_EKTF3XXX_CHIPSET) += ektf3xxx/
 obj-$(CONFIG_TOUCHSCREEN_RAYDIUM_CHIPSET)  += raydium_wt030/
+obj-y += ts_init.o
+obj-$(CONFIG_TOUCHSCREEN_SYSCTL) += ts_sysctl.o
+obj-$(CONFIG_TOUCHSCREEN_ATMEL308U) += Atmel308U/
+obj-$(CONFIG_TOUCHSCREEN_FTS) += focaltech_touch/
