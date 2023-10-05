@@ -2833,10 +2833,18 @@ static int cgroup_migrate(struct task_struct *leader, bool threadgroup,
  */
 static int cgroup_attach_task(struct cgroup *dst_cgrp,
 			      struct task_struct *leader, bool threadgroup)
+			      
+#ifdef CONFIG_PERF_HUMANTASK
+#define PATH_LEN 1024
+#endif
+
 {
 	LIST_HEAD(preloaded_csets);
 	struct task_struct *task;
 	int ret;
+#ifdef CONFIG_PERF_HUMANTASK
+	char dst_path[PATH_LEN];
+#endif
 
 	if (!cgroup_may_migrate_to(dst_cgrp))
 		return -EBUSY;
@@ -2861,8 +2869,29 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 
 	cgroup_migrate_finish(&preloaded_csets);
 
-	if (!ret)
+		if (!ret) {
+#ifdef CONFIG_PERF_HUMANTASK
+		memset(dst_path, 0, sizeof(dst_path));
+		cgroup_path(dst_cgrp, dst_path, PATH_LEN);
+		trace_cgroup_attach_task(dst_cgrp, dst_path, leader,
+					 threadgroup);
+		if (leader->human_task < 4 && strlen(dst_path) > 2) {
+			task_lock(leader);
+
+			if (strstr(dst_path, "top-app") &&
+			    (leader->pid == leader->tgid)) {
+				if (!leader->human_task)
+					leader->human_task++;
+			} else
+				leader->human_task = 0;
+
+			task_unlock(leader);
+		}
+	}
+#else
 		trace_cgroup_attach_task(dst_cgrp, leader, threadgroup);
+        }
+#endif		
 
 	return ret;
 }

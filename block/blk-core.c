@@ -1662,6 +1662,10 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	req->__dun = bio->bi_iter.bi_dun;
 #endif
 	req->ioprio = bio_prio(bio);
+#ifdef CONFIG_PERF_HUMANTASK
+	if (bio->human_task)
+		req->ioprio = 0;
+#endif	
 	blk_rq_bio_prep(req->q, req, bio);
 }
 
@@ -1755,6 +1759,11 @@ get_rq:
 	 * often, and the elevators are able to handle it.
 	 */
 	init_request_from_bio(req, bio);
+
+#ifdef CONFIG_PERF_HUMANTASK
+	if (bio->human_task)
+		where = ELEVATOR_INSERT_FRONT;
+#endif
 
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags))
 		req->cpu = raw_smp_processor_id();

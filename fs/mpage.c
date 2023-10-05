@@ -53,12 +53,24 @@ static void mpage_end_io(struct bio *bio)
 		page_endio(page, op_is_write(bio_op(bio)), bio->bi_error);
 	}
 
+#ifdef CONFIG_PERF_HUMANTASK
+	bio->human_task = 0;
+#endif
+
 	bio_put(bio);
 }
 
 static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
 {
 	bio->bi_end_io = mpage_end_io;
+	
+
+#ifdef CONFIG_PERF_HUMANTASK
+	if (current->human_task)
+		bio->human_task = current->pid;
+	else
+		bio->human_task = 0;
+#endif
 	bio_set_op_attrs(bio, op, op_flags);
 	guard_bio_eod(op, bio);
 	submit_bio(bio);
