@@ -38,7 +38,7 @@
 #define UPDATE_BUSY_VAL		1000000
 
 /* Number of jiffies for a full thermal cycle */
-#define TH_HZ			(HZ/5)
+#define TH_HZ			msecs_to_jiffies(200)
 
 #define KGSL_MAX_BUSLEVELS	20
 
@@ -565,8 +565,8 @@ static ssize_t kgsl_pwrctrl_thermal_pwrlevel_store(struct device *dev,
 
 	mutex_lock(&device->mutex);
 
-	if (level > pwr->num_pwrlevels - 2)
-		level = pwr->num_pwrlevels - 2;
+	if (level > pwr->num_pwrlevels - 1)
+		level = pwr->num_pwrlevels - 1;
 
 	pwr->thermal_pwrlevel = level;
 
@@ -644,8 +644,8 @@ static void kgsl_pwrctrl_min_pwrlevel_set(struct kgsl_device *device,
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
 	mutex_lock(&device->mutex);
-	if (level > pwr->num_pwrlevels - 2)
-		level = pwr->num_pwrlevels - 2;
+	if (level > pwr->num_pwrlevels - 1)
+		level = pwr->num_pwrlevels - 1;
 
 	/* You can't set a minimum power level lower than the maximum */
 	if (level < pwr->max_pwrlevel)
@@ -3017,7 +3017,7 @@ static int _check_active_count(struct kgsl_device *device, int count)
 int kgsl_active_count_wait(struct kgsl_device *device, int count)
 {
 	int result = 0;
-	long wait_jiffies = HZ;
+	long wait_jiffies = msecs_to_jiffies(1000);
 
 	if (WARN_ON(!mutex_is_locked(&device->mutex)))
 		return -EINVAL;

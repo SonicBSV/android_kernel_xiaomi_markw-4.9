@@ -9,6 +9,7 @@
  */
 
 #include <asm/neon.h>
+#include <asm/simd.h>
 #include <asm/unaligned.h>
 #include <crypto/aes.h>
 #include <linux/cpufeature.h>
@@ -20,6 +21,9 @@
 MODULE_DESCRIPTION("Synchronous AES cipher using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
+
+asmlinkage void __aes_arm64_encrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
+asmlinkage void __aes_arm64_decrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
 
 struct aes_block {
 	u8 b[AES_BLOCK_SIZE];
@@ -44,38 +48,30 @@ static int num_rounds(struct crypto_aes_ctx *ctx)
 	return 6 + ctx->key_length / 4;
 }
 
-extern void aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[]);
-extern void aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[]);
-
-#ifdef CONFIG_CFI_CLANG
-static inline void __cfi_aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
-{
-	aes_cipher_encrypt(tfm, dst, src);
-}
-
-static inline void __cfi_aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
-{
-	aes_cipher_decrypt(tfm, dst, src);
-}
-
-#define aes_cipher_encrypt __cfi_aes_cipher_encrypt
-#define aes_cipher_decrypt __cfi_aes_cipher_decrypt
-#endif
-
-void aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
+static void aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	kernel_neon_begin_partial(4);
+	if (!may_use_simd()) {
+		__aes_arm64_encrypt(ctx->key_enc, dst, src, num_rounds(ctx));
+		return;
+	}
+
+	kernel_neon_begin();
 	__aes_ce_encrypt(ctx->key_enc, dst, src, num_rounds(ctx));
 	kernel_neon_end();
 }
 
-void aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
+static void aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	kernel_neon_begin_partial(4);
+	if (!may_use_simd()) {
+		__aes_arm64_decrypt(ctx->key_dec, dst, src, num_rounds(ctx));
+		return;
+	}
+
+	kernel_neon_begin();
 	__aes_ce_decrypt(ctx->key_dec, dst, src, num_rounds(ctx));
 	kernel_neon_end();
 }
@@ -103,7 +99,7 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 	for (i = 0; i < kwords; i++)
 		ctx->key_enc[i] = get_unaligned_le32(in_key + i * sizeof(u32));
 
-	kernel_neon_begin_partial(2);
+	kernel_neon_begin();
 	for (i = 0; i < sizeof(rcon); i++) {
 		u32 *rki = ctx->key_enc + (i * kwords);
 		u32 *rko = rki + kwords;
@@ -192,4 +188,3 @@ static void __exit aes_mod_exit(void)
 
 module_cpu_feature_match(AES, aes_mod_init);
 module_exit(aes_mod_exit);
-
