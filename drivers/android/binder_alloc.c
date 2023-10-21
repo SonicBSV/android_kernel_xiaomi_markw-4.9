@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/list_lru.h>
-#include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
 #include "binder_alloc.h"
@@ -230,7 +229,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 	}
 
 	if (!vma && need_mm) {
-		pr_err_ratelimited("%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
+		pr_debug("%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
 			alloc->pid);
 		goto err_no_vma;
 	}
@@ -258,7 +257,6 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 
 		trace_binder_alloc_page_start(alloc, index);
 		page->page_ptr = alloc_page(GFP_KERNEL |
-					    __GFP_HIGHMEM |
 					    __GFP_ZERO);
 		if (!page->page_ptr) {
 			pr_err("%d: binder_alloc_buf failed for page at %pK\n",
@@ -375,7 +373,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	int ret;
 
 	if (alloc->vma == NULL) {
-		pr_err("%d: binder_alloc_buf, no vma\n",
+		pr_debug("%d: binder_alloc_buf, no vma\n",
 		       alloc->pid);
 		return ERR_PTR(-ESRCH);
 	}

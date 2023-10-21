@@ -2321,6 +2321,7 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 	int nnp = (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS);
 	int nosuid = !mnt_may_suid(bprm->file->f_path.mnt);
 	int rc;
+	u32 av;
 
 	if (!nnp && !nosuid)
 		return 0; /* neither NNP nor nosuid */
@@ -2329,24 +2330,40 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 		return 0; /* No change in credentials */
 
 	/*
-	 * The only transitions we permit under NNP or nosuid
-	 * are transitions to bounded SIDs, i.e. SIDs that are
-	 * guaranteed to only be allowed a subset of the permissions
-	 * of the current SID.
+	 * If the policy enables the nnp_nosuid_transition policy capability,
+	 * then we permit transitions under NNP or nosuid if the
+	 * policy allows the corresponding permission between
+	 * the old and new contexts.
+	 */
+	if (selinux_policycap_nnp_nosuid_transition) {
+		av = 0;
+		if (nnp)
+			av |= PROCESS2__NNP_TRANSITION;
+		if (nosuid)
+			av |= PROCESS2__NOSUID_TRANSITION;
+		rc = avc_has_perm(old_tsec->sid, new_tsec->sid,
+				  SECCLASS_PROCESS2, av, NULL);
+		if (!rc)
+			return 0;
+	}
+
+	/*
+	 * We also permit NNP or nosuid transitions to bounded SIDs,
+	 * i.e. SIDs that are guaranteed to only be allowed a subset
+	 * of the permissions of the current SID.
 	 */
 	rc = security_bounded_transition(old_tsec->sid, new_tsec->sid);
-	if (rc) {
-		/*
-		 * On failure, preserve the errno values for NNP vs nosuid.
-		 * NNP:  Operation not permitted for caller.
-		 * nosuid:  Permission denied to file.
-		 */
-		if (nnp)
-			return -EPERM;
-		else
-			return -EACCES;
-	}
-	return 0;
+	if (!rc)
+		return 0;
+
+	/*
+	 * On failure, preserve the errno values for NNP vs nosuid.
+	 * NNP:  Operation not permitted for caller.
+	 * nosuid:  Permission denied to file.
+	 */
+	if (nnp)
+		return -EPERM;
+	return -EACCES;
 }
 
 static int selinux_bprm_set_creds(struct linux_binprm *bprm)
@@ -6298,6 +6315,68 @@ static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
 }
 #endif
 
+
+#ifdef CONFIG_PERF_EVENTS
+static int selinux_perf_event_open(struct perf_event_attr *attr, int type)
+{
+	u32 requested, sid = current_sid();
+
+	if (type == PERF_SECURITY_OPEN)
+		requested = PERF_EVENT__OPEN;
+	else if (type == PERF_SECURITY_CPU)
+		requested = PERF_EVENT__CPU;
+	else if (type == PERF_SECURITY_KERNEL)
+		requested = PERF_EVENT__KERNEL;
+	else if (type == PERF_SECURITY_TRACEPOINT)
+		requested = PERF_EVENT__TRACEPOINT;
+	else
+		return -EINVAL;
+
+	return avc_has_perm(sid, sid, SECCLASS_PERF_EVENT,
+			    requested, NULL);
+}
+
+static int selinux_perf_event_alloc(struct perf_event *event)
+{
+	struct perf_event_security_struct *perfsec;
+
+	perfsec = kzalloc(sizeof(*perfsec), GFP_KERNEL);
+	if (!perfsec)
+		return -ENOMEM;
+
+	perfsec->sid = current_sid();
+	event->security = perfsec;
+
+	return 0;
+}
+
+static void selinux_perf_event_free(struct perf_event *event)
+{
+	struct perf_event_security_struct *perfsec = event->security;
+
+	event->security = NULL;
+	kfree(perfsec);
+}
+
+static int selinux_perf_event_read(struct perf_event *event)
+{
+	struct perf_event_security_struct *perfsec = event->security;
+	u32 sid = current_sid();
+
+	return avc_has_perm(sid, perfsec->sid,
+			    SECCLASS_PERF_EVENT, PERF_EVENT__READ, NULL);
+}
+
+static int selinux_perf_event_write(struct perf_event *event)
+{
+	struct perf_event_security_struct *perfsec = event->security;
+	u32 sid = current_sid();
+
+	return avc_has_perm(sid, perfsec->sid,
+			    SECCLASS_PERF_EVENT, PERF_EVENT__WRITE, NULL);
+}
+#endif
+
 static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(binder_set_context_mgr, selinux_binder_set_context_mgr),
 	LSM_HOOK_INIT(binder_transaction, selinux_binder_transaction),
@@ -6520,6 +6599,14 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(bpf_prog_alloc_security, selinux_bpf_prog_alloc),
 	LSM_HOOK_INIT(bpf_map_free_security, selinux_bpf_map_free),
 	LSM_HOOK_INIT(bpf_prog_free_security, selinux_bpf_prog_free),
+#endif
+
+#ifdef CONFIG_PERF_EVENTS
+	LSM_HOOK_INIT(perf_event_open, selinux_perf_event_open),
+	LSM_HOOK_INIT(perf_event_alloc, selinux_perf_event_alloc),
+	LSM_HOOK_INIT(perf_event_free, selinux_perf_event_free),
+	LSM_HOOK_INIT(perf_event_read, selinux_perf_event_read),
+	LSM_HOOK_INIT(perf_event_write, selinux_perf_event_write),
 #endif
 };
 
