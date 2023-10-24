@@ -175,6 +175,27 @@
 		qcom,detect-dpdm-floating;
 	};
 
+	gen_vkeys_ft {
+		compatible = "qcom,gen-vkeys-ft";
+		label = "ft5346";
+		qcom,disp-maxx = <1080>;
+		qcom,disp-maxy = <1920>;
+		qcom,panel-maxx = <1080>;
+		qcom,panel-maxy = <2080>;
+		qcom,key-codes = <139 172 158>;
+		qcom,y-offset = <0>;
+	};
+	gen_vkeys_atmel {
+		compatible = "qcom,gen-vkeys-atm";
+		label = "atmel-maxtouch";
+		qcom,disp-maxx = <1080>;
+		qcom,disp-maxy = <1920>;
+		qcom,panel-maxx = <1080>;
+		qcom,panel-maxy = <2080>;
+		qcom,key-codes = <139 172 158>;
+		qcom,y-offset = <0>;
+	};
+
 	qcom_seecom: qseecom@84A00000 {
 		compatible = "qcom,qseecom";
 		reg = <0x84A00000 0x1900000>;
