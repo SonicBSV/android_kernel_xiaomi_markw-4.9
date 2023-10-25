@@ -63,10 +63,6 @@ unsigned short coordinate_y[150] = {0};
 #define FT_SUSPEND_LEVEL 1
 #endif
 
-#if CTP_PROC_INTERFACE
-#include "ft5x06_test_lib.h"
-#endif
-
 #if CTP_LOCKDOWN_INFO
 static u8 lockdown_info[FT_LOCKDOWN_SIZE];
 static u8 nomal_boot;
@@ -114,31 +110,6 @@ static struct Upgrade_Info fts_updateinfo[] = {
 			fw_vkey_support, fw_name, fw_maj, fw_min, \
 			fw_sub_min)
 
-#if CTP_PROC_INTERFACE
-#define CTP_PARENT_PROC_NAME  "touchscreen"
-#define CTP_OPEN_PROC_NAME        "ctp_openshort_test"
-#define CTP_LOCKDOWN_INFOR_NAME   "lockdown_info"
-
-static struct semaphore g_device_mutex;
-
-static ssize_t ctp_open_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos);
-static ssize_t ctp_open_proc_write(struct file *filp, const char __user *userbuf, size_t count, loff_t *ppos);
-static const struct file_operations ctp_open_procs_fops = {
-	.write = ctp_open_proc_write,
-	.read = ctp_open_proc_read,
-	.owner = THIS_MODULE,
-};
-
-static ssize_t ctp_lockdown_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos);
-static ssize_t ctp_lockdown_proc_write(struct file *filp, const char __user *userbuf, size_t count, loff_t *ppos);
-static const struct file_operations ctp_lockdown_procs_fops = {
-	.write = ctp_lockdown_proc_write,
-	.read = ctp_lockdown_proc_read,
-	.owner = THIS_MODULE,
-};
-
-#endif
-
 #if FTS_PROC_APK_DEBUG
 #define PROC_UPGRADE			0
 #define PROC_READ_REGISTER		1
@@ -160,72 +131,6 @@ extern int power_supply_get_battery_charge_state(struct power_supply *psy);
 static struct power_supply *batt_psy;
 static u8 is_charger_plug;
 static u8 pre_charger_status;
-#endif
-
-#if CTP_PROC_INTERFACE
-static struct i2c_client *g_focalclient;
-#endif
-
-#if CTP_PROC_INTERFACE
-static int focal_i2c_Read(unsigned char *writebuf,
-		    int writelen, unsigned char *readbuf, int readlen)
-{
-	int ret;
-
-	if (writelen > 0) {
-		struct i2c_msg msgs[] = {
-			{
-			 .addr = g_focalclient->addr,
-			 .flags = 0,
-			 .len = writelen,
-			 .buf = writebuf,
-			 },
-			{
-			 .addr = g_focalclient->addr,
-			 .flags = I2C_M_RD,
-			 .len = readlen,
-			 .buf = readbuf,
-			 },
-		};
-		ret = i2c_transfer(g_focalclient->adapter, msgs, 2);
-		if (ret < 0)
-			dev_err(&g_focalclient->dev, "f%s: i2c read error.\n",
-				__func__);
-	} else {
-		struct i2c_msg msgs[] = {
-			{
-			 .addr = g_focalclient->addr,
-			 .flags = I2C_M_RD,
-			 .len = readlen,
-			 .buf = readbuf,
-			 },
-		};
-		ret = i2c_transfer(g_focalclient->adapter, msgs, 1);
-		if (ret < 0)
-			dev_err(&g_focalclient->dev, "%s:i2c read error.\n", __func__);
-	}
-	return ret;
-}
-/*write data by i2c*/
-static int focal_i2c_Write(unsigned char *writebuf, int writelen)
-{
-	int ret;
-
-	struct i2c_msg msg[] = {
-		{
-		 .addr = g_focalclient->addr,
-		 .flags = 0,
-		 .len = writelen,
-		 .buf = writebuf,
-		 },
-	};
-
-	ret = i2c_transfer(g_focalclient->adapter, msg, 1);
-	if (ret < 0)
-		dev_err(&g_focalclient->dev, "%s i2c write error.\n", __func__);
-
-	return ret;
-}
 #endif
 
 static int ft5x06_i2c_read(struct i2c_client *client, char *writebuf,
@@ -1965,118 +1870,6 @@ static ssize_t ft5x0x_fwupgradeapp_store(struct device *dev,
 static DEVICE_ATTR(ftsfwupgradeapp, S_IRUGO|S_IWUSR, ft5x0x_fwupgradeapp_show, ft5x0x_fwupgradeapp_store);
 #endif
 
-#if CTP_PROC_INTERFACE
-
-#define FT5X0X_INI_FILEPATH "/vendor/etc/"
-
-static int ft5x0x_GetInISize(char *config_name)
-{
-	struct file *pfile = NULL;
-	struct inode *inode;
-	unsigned long magic;
-	off_t fsize = 0;
-	char filepath[128];
-	memset(filepath, 0, sizeof(filepath));
-	sprintf(filepath, "%s%s", FT5X0X_INI_FILEPATH, config_name);
-	if (NULL == pfile)
-		pfile = filp_open(filepath, O_RDONLY, 0);
-	if (IS_ERR(pfile)) {
-		pr_err("error occured while opening file %s.\n", filepath);
-		return -EIO;
-	}
-	inode = pfile->f_path.dentry->d_inode;
-	magic = inode->i_sb->s_magic;
-	fsize = inode->i_size;
-	filp_close(pfile, NULL);
-	return fsize;
-}
-
-static int ft5x0x_ReadInIData(char *config_name, char *config_buf)
-
-{
-	struct file *pfile = NULL;
-	struct inode *inode;
-	unsigned long magic;
-	off_t fsize;
-	char filepath[128];
-	loff_t pos;
-	mm_segment_t old_fs;
-	memset(filepath, 0, sizeof(filepath));
-	sprintf(filepath, "%s%s", FT5X0X_INI_FILEPATH, config_name);
-	if (NULL == pfile)
-		pfile = filp_open(filepath, O_RDONLY, 0);
-	if (IS_ERR(pfile)) {
-		pr_err("error occured while opening file %s.\n", filepath);
-		return -EIO;
-	}
-	inode = pfile->f_path.dentry->d_inode;
-	magic = inode->i_sb->s_magic;
-	fsize = inode->i_size;
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	pos = 0;
-	vfs_read(pfile, config_buf, fsize, &pos);
-	filp_close(pfile, NULL);
-	set_fs(old_fs);
-	return 0;
-}
-
-static int ft5x0x_get_testparam_from_ini(char *config_name)
-
-{
-	char *filedata = NULL;
-	int inisize = ft5x0x_GetInISize(config_name);
-	CTP_INFO("inisize = %d \n ", inisize);
-	if (inisize <= 0) {
-		pr_err("%s ERROR:Get firmware size failed\n", __func__);
-		return -EIO;
-	}
-	filedata = kmalloc(inisize + 1, GFP_ATOMIC);
-	if (ft5x0x_ReadInIData(config_name, filedata)) {
-		pr_err("%s() - ERROR: request_firmware failed\n", __func__);
-		kfree(filedata);
-		return -EIO;
-	} else {
-		CTP_INFO("ft5x0x_ReadInIData successful\n");
-	}
-	SetParamData(filedata);
-	return 0;
-}
-
-#if CTP_SYS_APK_UPDATE
-static ssize_t ft5x0x_ftsmcaptest_show(struct device *dev, struct device_attribute *attr, char *buf)
-
-{
-	/* place holder for future use */
-	return -EPERM;
-}
-
-static ssize_t ft5x0x_ftsmcaptest_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-
-{
-	char cfgname[128];
-	memset(cfgname, 0, sizeof(cfgname));
-	sprintf(cfgname, "%s", buf);
-	cfgname[count-1] = '\0';
-	Init_I2C_Write_Func(focal_i2c_Write);
-	Init_I2C_Read_Func(focal_i2c_Read);
-	if (ft5x0x_get_testparam_from_ini(cfgname) < 0)
-		CTP_ERROR("get testparam from ini failure\n");
-	else {
-		if (true == StartTestTP())
-			CTP_INFO("tp test pass\n");
-		else
-			CTP_INFO("tp test failure\n");
-		FreeTestParamData();
-	}
-	return count;
-}
-
-static DEVICE_ATTR(ftsmcaptest, S_IRUGO|S_IWUSR, ft5x0x_ftsmcaptest_show, ft5x0x_ftsmcaptest_store);
-#endif
-
-#endif
-
 #ifdef CONFIG_OF
 static int ft5x06_get_dt_coords(struct device *dev, char *name,
 			struct ft5x06_ts_platform_data *pdata)
@@ -2308,102 +2101,6 @@ static int ft5x06_parse_dt(struct device *dev,
 			struct ft5x06_ts_platform_data *pdata)
 {
 	return -ENODEV;
-}
-#endif
-
-#if CTP_PROC_INTERFACE
-static ssize_t ctp_lockdown_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-{
-	char *ptr = buf;
-
-	if (*ppos) {
-		CTP_INFO("tp test again return\n");
-		return 0;
-	}
-	*ppos += count;
-
-	return sprintf(ptr, "%02X%02X%02X%02X%02X%02X%02X%02X\n",
-				lockdown_info[0], lockdown_info[1], lockdown_info[2], lockdown_info[3],
-				lockdown_info[4], lockdown_info[5], lockdown_info[6], lockdown_info[7]);
-
-}
-
-static ssize_t ctp_lockdown_proc_write(struct file *filp, const char __user *userbuf, size_t count, loff_t *ppos)
-{
-	return -EPERM;
-}
-
-static ssize_t ctp_open_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-{
-	char *ptr = buf;
-	char cfgname[128];
-	u8 fw_info[6] = {0x00};
-	u8 reg_addr = 0xA3;
-	u8 result = 0;
-
-	if (*ppos) {
-		CTP_INFO("tp test again return\n");
-		return 0;
-	}
-	*ppos += count;
-
-	ft5x06_i2c_read(update_client, &reg_addr, 1, fw_info, 6);
-	CTP_INFO("ic is %x", fw_info[5]);
-	if (fw_info[5] == VENDOR_O_FILM) {
-		sprintf(cfgname, "%s", "ft5346_oufei_1080p.ini");
-		CTP_INFO(" *** cfgname is: %s *** \n", cfgname);
-	} else if (fw_info[5] == VENDOR_BIEL) {
-	   sprintf(cfgname, "%s", "ft5346_biel_1080p.ini");
-		CTP_INFO(" *** cfgname is: %s *** \n", cfgname);
-	} else {
-	CTP_INFO("no ini match the project ctp,please check!");
-		return count;
-	}
-
-	Init_I2C_Write_Func(focal_i2c_Write);
-	Init_I2C_Read_Func(focal_i2c_Read);
-	if (ft5x0x_get_testparam_from_ini(cfgname) < 0) {
-		CTP_ERROR("get testparam from ini failure\n");
-		sprintf(ptr, "result=%d\n", 0);
-	} else {
-		if (true == StartTestTP()) {
-			CTP_INFO("tp test pass\n");
-			result = 1;
-		} else {
-			CTP_INFO("tp test failure\n");
-			result = 0;
-		}
-		FreeTestParamData();
-	}
-	return  sprintf(ptr, "result=%d\n", result);
-}
-static ssize_t ctp_open_proc_write(struct file *filp, const char __user *userbuf, size_t count, loff_t *ppos)
-{
-	return -EPERM;
-}
-
-static void create_ctp_proc(void)
-{
-		   struct proc_dir_entry *ctp_device_proc = NULL;
-	struct proc_dir_entry *ctp_open_proc = NULL;
-	struct proc_dir_entry *ctp_lockdown_proc = NULL;
-
-	ctp_device_proc = proc_mkdir(CTP_PARENT_PROC_NAME, NULL);
-	if (ctp_device_proc == NULL) {
-		CTP_ERROR("ft5x06: create parent_proc fail\n");
-		return;
-	}
-
-	ctp_open_proc = proc_create(CTP_OPEN_PROC_NAME, 0777, ctp_device_proc, &ctp_open_procs_fops);
-	if (ctp_open_proc == NULL) {
-		CTP_ERROR("ft5x06: create open_proc fail\n");
-	}
-
-	ctp_lockdown_proc = proc_create(CTP_LOCKDOWN_INFOR_NAME, 0666, ctp_device_proc, &ctp_lockdown_procs_fops);
-	if (ctp_lockdown_proc == NULL) {
-		CTP_ERROR("ft5x06: create ctp_lockdown_proc fail\n");
-	}
-
 }
 #endif
 
@@ -2748,10 +2445,6 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 	temp = NULL;
 	update_client = client;
 	gesture_client = client;
-#if CTP_PROC_INTERFACE
-	g_focalclient = client;
-	sema_init(&g_device_mutex, 1);
-#endif
 
 	if (client->dev.of_node) {
 		pdata = devm_kzalloc(&client->dev,
@@ -3061,10 +2754,6 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 	data->early_suspend.suspend = ft5x06_ts_early_suspend;
 	data->early_suspend.resume = ft5x06_ts_late_resume;
 	register_early_suspend(&data->early_suspend);
-#endif
-
-#if CTP_PROC_INTERFACE
-	create_ctp_proc();
 #endif
 
 #if WT_CTP_GESTURE_SUPPORT && !defined(CONFIG_MACH_XIAOMI)
