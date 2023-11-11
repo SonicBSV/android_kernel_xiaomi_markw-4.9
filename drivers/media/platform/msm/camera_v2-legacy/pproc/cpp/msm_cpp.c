@@ -44,7 +44,7 @@
 
 #define ENABLE_CPP_LOW		0
 
-#define CPP_CMD_TIMEOUT_MS	300
+#define CPP_CMD_TIMEOUT_MS	120
 #define MSM_CPP_INVALID_OFFSET	0x00000000
 #define MSM_CPP_NOMINAL_CLOCK	266670000
 #define MSM_CPP_TURBO_CLOCK	320000000
@@ -1008,7 +1008,7 @@ static int cpp_init_hardware(struct cpp_device *cpp_dev)
 		if (vbif_version == VBIF_VERSION_2_3_0)
 			cpp_dev->hw_info.cpp_hw_version = CPP_HW_VERSION_4_0_0;
 	}
-	pr_info("CPP HW Version: 0x%x\n", cpp_dev->hw_info.cpp_hw_version);
+	CPP_DBG("CPP HW Version: 0x%x\n", cpp_dev->hw_info.cpp_hw_version);
 	cpp_dev->hw_info.cpp_hw_caps =
 		msm_camera_io_r(cpp_dev->cpp_hw_base + 0x4);
 
@@ -1026,7 +1026,7 @@ static int cpp_init_hardware(struct cpp_device *cpp_dev)
 			__func__, rc);
 		goto pwr_collapse_reset;
 	}
-	pr_err("stream_cnt:%d\n", cpp_dev->stream_cnt);
+	CPP_DBG("stream_cnt:%d\n", cpp_dev->stream_cnt);
 	cpp_dev->stream_cnt = 0;
 	if (cpp_dev->fw_name_bin) {
 		msm_camera_enable_irq(cpp_dev->irq, false);
@@ -4212,7 +4212,7 @@ static int msm_cpp_buffer_private_ops(struct cpp_device *cpp_dev,
 			&ioctl_arg);
 		/* Use VIDIOC_MSM_BUF_MNGR_GET_BUF if getbuf with indx fails */
 		if (rc < 0) {
-			pr_err_ratelimited("get_buf_by_idx for %d err %d,use get_buf\n",
+			CPP_DBG("get_buf_by_idx for %d err %d,use get_buf\n",
 				buff_mgr_info->index, rc);
 			rc = cpp_dev->buf_mgr_ops.msm_cam_buf_mgr_ops(
 				VIDIOC_MSM_BUF_MNGR_GET_BUF, buff_mgr_info);

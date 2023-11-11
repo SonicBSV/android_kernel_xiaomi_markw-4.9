@@ -870,6 +870,29 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	return true;
 }
 
+#ifdef CONFIG_PERF_HUMANTASK
+	enum elv_merge where;
+
+	if (req_op(rq) == REQ_OP_DISCARD &&
+	    queue_max_discard_segments(rq->q) > 1)
+		where = ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
+		where = ELEVATOR_BACK_MERGE;
+	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
+		where = ELEVATOR_FRONT_MERGE;
+	else
+		where = ELEVATOR_NO_MERGE;
+
+	if (bio->human_task) {
+		if (where && where != ELEVATOR_DISCARD_MERGE) {
+			rq->ioprio = 0;
+			bio->bi_ioprio = 0;
+		}
+	}
+
+	return where;
+#else
+
 int blk_try_merge(struct request *rq, struct bio *bio)
 {
 	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector) {
@@ -883,4 +906,5 @@ int blk_try_merge(struct request *rq, struct bio *bio)
 		return ELEVATOR_FRONT_MERGE;
 	}
 	return ELEVATOR_NO_MERGE;
+#endif	
 }
