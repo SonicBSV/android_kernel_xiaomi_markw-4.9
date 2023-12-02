@@ -17,3 +17,4 @@
 #include "msm8953-camera-sensor-qrd-markw.dtsi"
 #include "msm8953-pinctrl-markw.dtsi"
 #include "msm8953-memory-markw.dtsi"
+#include "markw-gpu-oc.dtsi"
