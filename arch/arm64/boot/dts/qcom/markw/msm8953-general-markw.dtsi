@@ -164,12 +164,6 @@
 		reg-names = "sn-base";
 	};
 
-	sec_boot_fuse: secbootfuse@0xa41d0 {
-		compatible = "qcom,sec-boot-fuse";
-		reg = <0xa41d0 0x4>;
-		reg-names = "sec-boot-base";
-	};
-
 	usb3: ssusb@7000000 {
 		vbus_dwc3-supply = <&smbcharger_charger_otg>;
 		qcom,detect-dpdm-floating;
