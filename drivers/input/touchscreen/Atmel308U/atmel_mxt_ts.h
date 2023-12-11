@@ -58,6 +58,9 @@ struct mxt_config_info {
 	const char *mxt_cfg_name;
 	int *key_codes;
 	int key_num;
+	bool key_reports_touches;
+	int *key_x_coords;
+	int key_y_coord;
 	u8 selfintthr_stylus;
 	u8 t71_tchthr_pos;
 	u8 self_chgtime_min;

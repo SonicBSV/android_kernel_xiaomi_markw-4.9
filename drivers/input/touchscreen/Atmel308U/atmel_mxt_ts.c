@@ -1833,12 +1833,29 @@ static void mxt_proc_t97_messages(struct mxt_data *data, u8 *msg)
 		if (!curr_state && new_state) {
 			dev_dbg(dev, "T97 key press: %u, key_code = %u\n", key, pdata->config_array[index].key_codes[key]);
 			__set_bit(key, &data->keystatus);
-			input_event(input_dev, EV_KEY, pdata->config_array[index].key_codes[key], 1);
+			if (pdata->config_array[index].key_reports_touches) {
+				input_mt_slot(input_dev, 0);
+				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
+				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, 1);
+				input_report_abs(input_dev, ABS_MT_POSITION_X, pdata->config_array[index].key_x_coords[key]);
+				input_report_abs(input_dev, ABS_MT_POSITION_Y, pdata->config_array[index].key_y_coord);
+				input_report_key(input_dev, BTN_TOUCH, 1);
+				input_sync(input_dev);
+			} else {
+				input_event(input_dev, EV_KEY, pdata->config_array[index].key_codes[key], 1);
+			}
 			sync = true;
 		} else if (curr_state && !new_state) {
 			dev_dbg(dev, "T97 key release: %u, key_code = %u\n", key, pdata->config_array[index].key_codes[key]);
 			__clear_bit(key, &data->keystatus);
-			input_event(input_dev, EV_KEY,  pdata->config_array[index].key_codes[key], 0);
+			if (pdata->config_array[index].key_reports_touches) {
+				input_mt_slot(input_dev, 0);
+				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
+				input_report_key(input_dev, BTN_TOUCH, 0);
+				input_sync(input_dev);
+			} else {
+				input_event(input_dev, EV_KEY,  pdata->config_array[index].key_codes[key], 0);
+			}
 			sync = true;
 		}
 	}
@@ -5169,8 +5186,12 @@ static void mxt_clear_touch_event(struct mxt_data *data)
 		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
 		data->finger_down[id] = false;
 	}
-	for (i = 0; i < data->pdata->config_array[index].key_num; i++)
+	for (i = 0; i < data->pdata->config_array[index].key_num; i++) {
+		if (data->pdata->config_array[index].key_reports_touches)
+			continue;
+
 		clear_bit(data->pdata->config_array[index].key_codes[i], input_dev->key);
+	}
 
 	input_sync(input_dev);
 }
@@ -5387,6 +5408,7 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 				     0, MXT_MAX_AREA, 0, 0);
 	}
+
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
@@ -5412,8 +5434,12 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	}
 
 	/* For key codes */
-	for (i = 0; i < data->pdata->config_array[index].key_num; i++)
+	for (i = 0; i < data->pdata->config_array[index].key_num; i++) {
+		if (data->pdata->config_array[index].key_reports_touches)
+			continue;
+
 		input_set_capability(input_dev, EV_KEY, data->pdata->config_array[index].key_codes[i]);
+	}
 
 	/* For wakeup gesture */
 	if (data->pdata->config_array[index].wakeup_gesture_support) {
@@ -5787,6 +5813,25 @@ static int mxt_parse_dt(struct device *dev, struct mxt_platform_data *pdata)
 					info->key_codes, info->key_num);
 			if (ret) {
 				dev_err(dev, "Unable to read key codes\n");
+			}
+
+			info->key_reports_touches = of_property_read_bool(temp, "atmel,key-reports-touches");
+			if (info->key_reports_touches) {
+				info->key_x_coords = devm_kzalloc(dev, sizeof(int) * info->key_num, GFP_KERNEL);
+				if (!info->key_x_coords)
+					return -ENOMEM;
+
+				ret = of_property_read_u32_array(temp, "atmel,key-x-coords", info->key_x_coords, info->key_num);
+				if (ret) {
+					dev_err(dev, "Unable to read key X coords\n");
+					info->key_reports_touches = 0;
+				}
+
+				ret = of_property_read_u32(temp, "atmel,key-y-coord", &info->key_y_coord);
+				if (ret) {
+					dev_err(dev, "Unable to key Y coord\n");
+					info->key_reports_touches = 0;
+				}
 			}
 		}
 
