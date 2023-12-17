@@ -30,7 +30,7 @@
 #define BORDER_ADJUST_NUM 3
 #define BORDER_ADJUST_DENOM 4
 
-static struct kobject *vkey_obj;
+struct kobject *vkey_obj;
 static char *vkey_buf;
 
 static ssize_t vkey_show(struct kobject  *obj,
@@ -127,14 +127,18 @@ static int vkeys_probe(struct platform_device *pdev)
 	char *name;
 
 	vkey_buf = devm_kzalloc(&pdev->dev, MAX_BUF_SIZE, GFP_KERNEL);
-	if (!vkey_buf)
+	if (!vkey_buf) {
+		dev_err(&pdev->dev, "Failed to allocate memory\n");
 		return -ENOMEM;
+	}
 
 	if (pdev->dev.of_node) {
 		pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct vkeys_platform_data), GFP_KERNEL);
-		if (!pdata)
+		if (!pdata) {
+			dev_err(&pdev->dev, "Failed to allocate memory\n");
 			return -ENOMEM;
+		}
 
 		ret = vkey_parse_dt(&pdev->dev, pdata);
 		if (ret) {
@@ -180,10 +184,9 @@ static int vkeys_probe(struct platform_device *pdev)
 				"virtualkeys.%s", pdata->name);
 	vkey_obj_attr.attr.name = name;
 
-	vkey_obj = kobject_create_and_add("board_properties", NULL);
+	
 	if (!vkey_obj) {
-		dev_err(&pdev->dev, "unable to create kobject\n");
-		return -ENOMEM;
+		vkey_obj = kobject_create_and_add("board_properties", NULL);
 	}
 
 	ret = sysfs_create_group(vkey_obj, &vkey_grp);
@@ -207,7 +210,7 @@ static int vkeys_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id vkey_match_table[] = {
+static struct of_device_id vkey_match_table[] = {
 	{ .compatible = "qcom,gen-vkeys-ft",},
 	{ },
 };
