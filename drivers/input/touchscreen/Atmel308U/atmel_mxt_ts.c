@@ -5975,10 +5975,10 @@ static int atmel_power_source_init(struct mxt_data *data)
 		}
 	}
 
-	data->vcc_i2c = regulator_get(&data->client->dev, "vcc-i2c");
+	data->vcc_i2c = regulator_get(&data->client->dev, "vcc_i2c");
 	if (IS_ERR(data->vcc_i2c)) {
 		rc = PTR_ERR(data->vcc_i2c);
-		CTP_ERROR("Regulator get failed vcc-i2c rc=%d", rc);
+		CTP_ERROR("Regulator get failed vcc_i2c rc=%d", rc);
 		goto reg_vdd_set_vtg;
 	}
 
@@ -5986,7 +5986,7 @@ static int atmel_power_source_init(struct mxt_data *data)
 		rc = regulator_set_voltage(data->vcc_i2c, ATMEL_I2C_VTG_MIN_UV,
 				ATMEL_I2C_VTG_MAX_UV);
 		if (rc) {
-			CTP_ERROR("Regulator set_vtg failed vcc-i2c rc=%d",
+			CTP_ERROR("Regulator set_vtg failed vcc_i2c rc=%d",
 					rc);
 			goto reg_vcc_i2c_put;
 		}
