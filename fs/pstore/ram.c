@@ -44,12 +44,8 @@ static ulong record_size = MIN_MEM_SIZE;
 module_param(record_size, ulong, 0400);
 MODULE_PARM_DESC(record_size,
 		"size of each dump done on oops/panic");
-
 #ifdef CONFIG_MACH_XIAOMI_MARKW
 static ulong ramoops_console_size = 256*1024UL;
-#endif
-#if defined(CONFIG_MACH_XIAOMI_C6) || defined(CONFIG_MACH_XIAOMI_D2)
-static ulong ramoops_console_size = 512*1024UL;
 #else
 static ulong ramoops_console_size = MIN_MEM_SIZE;
 #endif
