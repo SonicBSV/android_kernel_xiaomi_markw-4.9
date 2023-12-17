@@ -119,7 +119,6 @@
 	qcom,fg-chg-iterm-ma = <100>;
 	qcom,fg-cutoff-voltage-mv = <3400>;
 	qcom,fg-cc-cv-threshold-mv = <4390>;
-	qcom,fg-vbat-estimate-diff-mv = <3200>;
 	qcom,cold-bat-decidegc = <(0)>;
 	qcom,cool-bat-decidegc = <(100)>;
 	qcom,hot-bat-decidegc = <600>;
