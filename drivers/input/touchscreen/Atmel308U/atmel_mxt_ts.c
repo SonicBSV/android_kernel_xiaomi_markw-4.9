@@ -810,7 +810,7 @@ static u8 lockdown_info[MXT_LOCKDOWN_SIZE];
 #define CTP_PARENT_PROC_NAME  "touchscreen"
 #define CTP_LOCKDOWN_INFOR_NAME   "lockdown_info"
 #define CTP_OPEN_PROC_NAME        "ctp_openshort_test"
-u8 tp_color;
+//u8 tp_color;
 struct mxt_data *cmcs_data;
 static ssize_t ctp_lockdown_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos);
 static ssize_t ctp_lockdown_proc_write(struct file *filp, const char __user *userbuf, size_t count, loff_t *ppos);
@@ -2723,7 +2723,7 @@ start:
 		for (k = 0; k < MXT_LOCKDOWN_SIZE; k++) {
 			lockdown_info[k] = data->lockdown_info[k];
 		}
-	tp_color =  lockdown_info[2];
+//	tp_color =  lockdown_info[2];
 	data->panel_id = data->lockdown_info[0];
 
 	/* WAD: Some old panels do not have lockdown info, just check the first
