@@ -14,15 +14,13 @@
 #ifndef __MSM_BCL_LEGACY_H
 #define __MSM_BCL_LEGACY_H
 
-enum bcl_legacy_dev_type {
-	BCL_LEGACY_HIGH_IBAT,
-	BCL_LEGACY_LOW_VBAT,
-	BCL_LEGACY_SOC_MONITOR,
-	BCL_LEGACY_TYPE_MAX,
+enum bcl_dev_type {
+	BCL_HIGH_IBAT,
+	BCL_LOW_VBAT,
+	BCL_SOC_MONITOR,
+	BCL_TYPE_MAX,
 };
 
-int msm_bcl_legacy_read(enum bcl_legacy_dev_type, int *);
-
-bool msm_bcl_is_legacy(void);
+int msm_bcl_read(enum bcl_dev_type, int *);
 
 #endif /*__MSM_BCL_LEGACY_H*/
