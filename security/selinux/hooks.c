@@ -4080,12 +4080,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 			    secid, task_sid(p), SECCLASS_PROCESS, perm, NULL);
 }
 
-static int selinux_task_wait(struct task_struct *p)
-{
-	return avc_has_perm(task_sid(p), current_sid(), SECCLASS_PROCESS,
-			    PROCESS__SIGCHLD, NULL);
-}
-
 static void selinux_task_to_inode(struct task_struct *p,
 				  struct inode *inode)
 {
@@ -5186,14 +5180,20 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 		} else if (rc == -EINVAL) {
 			/* -EINVAL is a missing msg/perm mapping */
 			pr_warn_ratelimited("SELinux: unrecognized netlink"
-			       " message: protocol=%hu nlmsg_type=%hu sclass=%s"
-			       " pig=%d comm=%s\n",
-			       sk->sk_protocol, nlh->nlmsg_type,
-			       secclass_map[sksec->sclass - 1].name,
-			       task_pid_nr(current), current->comm);
-			if (!is_enforcing(&selinux_state) ||
-			    security_get_allow_unknown(&selinux_state))
-				err = 0;
+				" message: protocol=%hu nlmsg_type=%hu sclass=%s"
+				" pid=%d comm=%s\n",
+				sk->sk_protocol, nlh->nlmsg_type,
+				secclass_map[sclass - 1].name,
+				task_pid_nr(current), current->comm);
+			if (enforcing_enabled(&selinux_state)&&
+			    !security_get_allow_unknown(&selinux_state))
+				return rc;
+			rc = 0;
+		} else if (rc == -ENOENT) {
+			/* -ENOENT is a missing socket/class mapping, ignore */
+			rc = 0;
+		} else {
+			return rc;
 		}
 
 		/* move to the next message after applying netlink padding */
@@ -6773,17 +6773,6 @@ static __init int selinux_init(void)
 	selinux_ss_init(&selinux_state.ss);
 	selinux_avc_init(&selinux_state.avc);
 
-	memset(&selinux_state, 0, sizeof(selinux_state));
-	enforcing_set(&selinux_state, selinux_enforcing_boot);
-	selinux_state.checkreqprot = selinux_checkreqprot_boot;
-	selinux_ss_init(&selinux_state.ss);
-	selinux_avc_init(&selinux_state.avc);
-
-	memset(&selinux_state, 0, sizeof(selinux_state));
-	set_enforcing(&selinux_state, selinux_enforcing_boot);
-	selinux_state.checkreqprot = selinux_checkreqprot_boot;
-	selinux_ss_init(&selinux_state.ss);
-
 	/* Set the security state for the initial task. */
 	cred_init_security();
 
@@ -6809,7 +6798,7 @@ static __init int selinux_init(void)
 		panic("SELinux: Unable to register AVC netcache callback\n");
 
 	if (selinux_enforcing_boot)
-		printk(KERN_DEBUG "SELinux:  Starting in enforcing mode\n");
+		pr_debug("SELinux:  Starting in enforcing mode\n");
 	else
 		pr_debug("SELinux:  Starting in permissive mode\n");
 
@@ -6927,7 +6916,7 @@ int selinux_disable(struct selinux_state *state)
 
 	state->disabled = 1;
 
-	printk(KERN_INFO "SELinux:  Disabled at runtime.\n");
+	pr_info("SELinux:  Disabled at runtime.\n");
 
 	selinux_enabled = 0;
 
