@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/atomic.h>
+#include <asm/barrier.h>
 #include "flask.h"
 #include "security.h"
 #include "sidtab.h"
@@ -28,8 +28,7 @@ int sidtab_init(struct sidtab *s)
 	for (i = 0; i < SECINITSID_NUM; i++)
 		s->isids[i].set = 0;
 
-	atomic_set(&s->count, 0);
-
+	s->count = 0;
 	s->convert = NULL;
 	hash_init(s->context_to_sid);
 
@@ -194,7 +193,8 @@ static struct sidtab_entry_leaf *sidtab_do_lookup(struct sidtab *s, u32 index,
 
 static struct context *sidtab_lookup(struct sidtab *s, u32 index)
 {
-	u32 count = (u32)atomic_read(&s->count);
+	/* read entries only after reading count */
+	u32 count = smp_load_acquire(&s->count);
 
 	if (index >= count)
 		return NULL;
@@ -257,6 +257,11 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 	/* read entries only after reading count */
 	count = smp_load_acquire(&s->count);
 	convert = s->convert;
+
+	/* bail out if we already reached max entries */
+	rc = -EOVERFLOW;
+	if (count >= SIDTAB_MAX)
+		goto out_unlock;
 
 	/* insert context into new entry */
 	rc = -ENOMEM;
@@ -388,7 +393,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 		return -EBUSY;
 	}
 
-	count = (u32)atomic_read(&s->count);
+	count = s->count;
 	level = sidtab_level_from_count(count);
 
 	/* allocate last leaf in the new sidtab (to avoid race with
@@ -401,7 +406,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 	}
 
 	/* set count in case no new entries are added during conversion */
-	atomic_set(&params->target->count, count);
+	params->target->count = count;
 
 	/* enable live convert of new entries */
 	s->convert = params;

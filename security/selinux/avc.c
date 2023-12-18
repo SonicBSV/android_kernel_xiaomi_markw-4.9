@@ -41,7 +41,7 @@
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
 #define avc_cache_stats_incr(field)	this_cpu_inc(avc_cache_stats.field)
 #else
-#define avc_cache_stats_incr(field)	do {} while (0)
+#define avc_cache_stats_incr(field)	((void)0)
 #endif
 
 struct avc_entry {
@@ -178,8 +178,7 @@ static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
 	char *scontext;
 	u32 scontext_len;
 
-	rc = security_sid_to_context(&selinux_state, ssid,
-				     &scontext, &scontext_len);
+	rc = security_sid_to_context(state, ssid, &scontext, &scontext_len);
 	if (rc)
 		audit_log_format(ab, "ssid=%d", ssid);
 	else {
@@ -187,8 +186,7 @@ static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
 		kfree(scontext);
 	}
 
-	rc = security_sid_to_context(&selinux_state, tsid,
-				     &scontext, &scontext_len);
+	rc = security_sid_to_context(state, tsid, &scontext, &scontext_len);
 	if (rc)
 		audit_log_format(ab, " tsid=%d", tsid);
 	else {
@@ -371,7 +369,7 @@ static struct avc_xperms_decision_node
 	struct extended_perms_decision *xpd;
 
 	xpd_node = kmem_cache_zalloc(avc_xperms_decision_cachep,
-			GFP_NOWAIT | __GFP_NOWARN);
+				     GFP_NOWAIT | __GFP_NOWARN);
 	if (!xpd_node)
 		return NULL;
 
@@ -418,8 +416,7 @@ static struct avc_xperms_node *avc_xperms_alloc(void)
 {
 	struct avc_xperms_node *xp_node;
 
-	xp_node = kmem_cache_zalloc(avc_xperms_cachep,
-			GFP_NOWAIT | __GFP_NOWARN);
+	xp_node = kmem_cache_zalloc(avc_xperms_cachep, GFP_NOWAIT | __GFP_NOWARN);
 	if (!xp_node)
 		return xp_node;
 	INIT_LIST_HEAD(&xp_node->xpd_head);
@@ -656,7 +653,7 @@ static int avc_latest_notif_update(struct selinux_avc *avc,
 	spin_lock_irqsave(&notif_lock, flag);
 	if (is_insert) {
 		if (seqno < avc->avc_cache.latest_notif) {
-			printk(KERN_WARNING "SELinux: avc:  seqno %d < latest_notif %d\n",
+			pr_warn("SELinux: avc:  seqno %d < latest_notif %d\n",
 			       seqno, avc->avc_cache.latest_notif);
 			ret = -EAGAIN;
 		}
@@ -799,6 +796,7 @@ noinline int slow_avc_audit(struct selinux_state *state,
 	sad.ssid = ssid;
 	sad.tsid = tsid;
 	sad.audited = audited;
+	sad.denied = denied;
 	sad.result = result;
 	sad.state = state;
 
@@ -1008,8 +1006,7 @@ struct avc_node *avc_compute_av(struct selinux_state *state,
 {
 	rcu_read_unlock();
 	INIT_LIST_HEAD(&xp_node->xpd_head);
-	security_compute_av(&selinux_state, ssid, tsid, tclass,
-			    avd, &xp_node->xp);
+	security_compute_av(state, ssid, tsid, tclass, avd, &xp_node->xp);
 	rcu_read_lock();
 	return avc_insert(state->avc, ssid, tsid, tclass, avd, xp_node);
 }
@@ -1023,7 +1020,7 @@ static noinline int avc_denied(struct selinux_state *state,
 	if (flags & AVC_STRICT)
 		return -EACCES;
 
-	if (is_enforcing(&selinux_state) &&
+	if (enforcing_enabled(state) &&
 	    !(avd->flags & AVD_FLAGS_PERMISSIVE))
 		return -EACCES;
 
@@ -1086,8 +1083,8 @@ int avc_has_extended_perms(struct selinux_state *state,
 			goto decision;
 		}
 		rcu_read_unlock();
-		security_compute_xperms_decision(&selinux_state, ssid, tsid,
-						 tclass, driver, &local_xpd);
+		security_compute_xperms_decision(state, ssid, tsid, tclass,
+						 driver, &local_xpd);
 		rcu_read_lock();
 		avc_update_node(state->avc, AVC_CALLBACK_ADD_XPERMS, requested,
 				driver, xperm, ssid, tsid, tclass, avd.seqno,

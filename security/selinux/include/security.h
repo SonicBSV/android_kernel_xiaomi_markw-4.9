@@ -71,15 +71,12 @@ enum {
 	POLICYDB_CAPABILITY_COMPAT1,
 	POLICYDB_CAPABILITY_ALWAYSNETWORK,
 	POLICYDB_CAPABILITY_COMPAT2,
+	POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
-extern char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
-
-extern int selinux_policycap_netpeer;
-extern int selinux_policycap_openperm;
-extern int selinux_policycap_alwaysnetwork;
+extern const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
 
 /*
  * type_datum properties
@@ -91,6 +88,7 @@ extern int selinux_policycap_alwaysnetwork;
 /* limitation of boundary depth  */
 #define POLICYDB_BOUNDS_MAXDEPTH	4
 
+struct selinux_avc;
 struct selinux_ss;
 
 struct selinux_state {
@@ -101,30 +99,35 @@ struct selinux_state {
 	bool checkreqprot;
 	bool initialized;
 	bool policycap[__POLICYDB_CAPABILITY_MAX];
+	bool android_netlink_route;
+	bool android_netlink_getneigh;
+
+	struct selinux_avc *avc;
 	struct selinux_ss *ss;
 };
 
 void selinux_ss_init(struct selinux_ss **ss);
+void selinux_avc_init(struct selinux_avc **avc);
 
 extern struct selinux_state selinux_state;
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-static inline bool is_enforcing(struct selinux_state *state)
+static inline bool enforcing_enabled(struct selinux_state *state)
 {
 	return state->enforcing;
 }
 
-static inline void set_enforcing(struct selinux_state *state, bool value)
+static inline void enforcing_set(struct selinux_state *state, bool value)
 {
 	state->enforcing = value;
 }
 #else
-static inline bool is_enforcing(struct selinux_state *state)
+static inline bool enforcing_enabled(struct selinux_state *state)
 {
 	return true;
 }
 
-static inline void set_enforcing(struct selinux_state *state, bool value)
+static inline void enforcing_set(struct selinux_state *state, bool value)
 {
 }
 #endif
@@ -155,6 +158,20 @@ static inline bool selinux_policycap_nnp_nosuid_transition(void)
 	struct selinux_state *state = &selinux_state;
 
 	return state->policycap[POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION];
+}
+
+static inline bool selinux_android_nlroute_getlink(void)
+{
+	struct selinux_state *state = &selinux_state;
+
+	return state->android_netlink_route;
+}
+
+static inline bool selinux_android_nlroute_getneigh(void)
+{
+	struct selinux_state *state = &selinux_state;
+
+	return state->android_netlink_getneigh;
 }
 
 int security_mls_enabled(struct selinux_state *state);
@@ -365,5 +382,7 @@ extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern void avtab_cache_init(void);
 extern void ebitmap_cache_init(void);
 extern void hashtab_cache_init(void);
+extern void selinux_nlmsg_init(void);
+extern int security_sidtab_hash_stats(struct selinux_state *state, char *page);
 
 #endif /* _SELINUX_SECURITY_H_ */
