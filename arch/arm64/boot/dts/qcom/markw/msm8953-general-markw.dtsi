@@ -169,7 +169,7 @@
 	};
 
 	gen_vkeys_ft {
-		compatible = "qcom,gen-vkeys-ft";
+		compatible = "qcom,gen-vkeys";
 		label = "ft5346";
 		qcom,disp-maxx = <1080>;
 		qcom,disp-maxy = <1920>;
@@ -179,7 +179,7 @@
 		qcom,y-offset = <0>;
 	};
 	gen_vkeys_atmel {
-		compatible = "qcom,gen-vkeys-atm";
+		compatible = "qcom,gen-vkeys";
 		label = "atmel-maxtouch";
 		qcom,disp-maxx = <1080>;
 		qcom,disp-maxy = <1920>;
@@ -330,7 +330,7 @@
 		ftech,fw-delay-era-flsh-ms = <2000>;
 		ftech,fw-auto-cal;
 		ftech,ignore-id-check;
-		ftech,have-key;
+		/* ftech,have-key; */
 		ftech,key-number = <3>;
 		ftech,keys = <139 172 158>;
 		ftech,key-y-coord = <2000>;
@@ -365,6 +365,9 @@
 			atmel,mxt-cfg-name = "mxt_308u_b5_f.raw";
 			atmel,vendor-id = /bits/ 8 <0x31 0x31>; /* Biel HW ver 1 */
 			atmel,key-codes = <139 172 158>;
+			atmel,key-reports-touches;
+			atmel,key-y-coord = <4000>;
+			atmel,key-x-coords = <360 1080 1800>;
 			atmel,selfintthr-stylus = <0>;
 			atmel,t71-tchthr-pos = <22>;
 			atmel,self-chgtime-min = <0>;
