@@ -211,7 +211,9 @@ static int vkeys_remove(struct platform_device *pdev)
 }
 
 static struct of_device_id vkey_match_table[] = {
+	{ .compatible = "qcom,gen-vkeys",},
 	{ .compatible = "qcom,gen-vkeys-ft",},
+	{ .compatible = "qcom,gen-vkeys-atm",},
 	{ },
 };
 
@@ -220,7 +222,7 @@ static struct platform_driver vkeys_driver = {
 	.remove = vkeys_remove,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = "gen_vkeys_ft",
+		.name = "gen_vkeys",
 		.of_match_table = vkey_match_table,
 	},
 };
