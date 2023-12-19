@@ -470,7 +470,8 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 	ssize_t ret;
 
 #ifdef CONFIG_KSU
-	ksu_handle_vfs_read(&file, &buf, &count, &pos);
+	if (get_ksu_state() > 0)
+		ksu_handle_vfs_read(&file, &buf, &count, &pos);
 #endif
 
 	if (!(file->f_mode & FMODE_READ))
