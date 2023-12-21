@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, 2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -35,6 +35,7 @@
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
+#include "mdss_smmu.h"
 
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
@@ -138,9 +139,6 @@ void mdss_dump_dsi_debug_bus(u32 bus_dump_flag,
 	pr_info("========End DSI Debug Bus=========\n");
 }
 
-#ifdef CONFIG_MACH_XIAOMI_C6
-int panel_suspend_reset_flag = 0;
-#endif
 static void mdss_dsi_pm_qos_add_request(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	struct irq_info *irq_info;
@@ -396,13 +394,6 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 
 	if (mdss_dsi_pinctrl_set_state(ctrl_pdata, false))
 		pr_debug("reset disable: pinctrl not enabled\n");
-
-#ifdef CONFIG_MACH_XIAOMI_C6
-	if (panel_suspend_reset_flag == 2)
-		msleep(1); /* delay 1ms */
-	else if (panel_suspend_reset_flag == 3)
-		msleep(4); /* delay 4ms */
-#endif
 
 	ret = msm_mdss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
@@ -1348,6 +1339,8 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *panel_info = NULL;
+	struct platform_device *pdev;
+	struct dsi_buf *tp;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1358,6 +1351,16 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 				panel_data);
 
 	panel_info = &ctrl_pdata->panel_data.panel_info;
+
+	pdev = mdss_res->pdev;
+	tp = &ctrl_pdata->tx_buf;
+	mdss_smmu_dma_free_coherent(&pdev->dev, SZ_4K, tp->start, tp->dmap,
+			ctrl_pdata->dma_addr, MDSS_IOMMU_DOMAIN_UNSECURE);
+	tp->end = NULL;
+	tp->size = 0;
+	ctrl_pdata->dma_addr = 0;
+	tp->start = NULL;
+	tp->dmap = 0;
 
 	pr_debug("%s+: ctrl=%pK ndx=%d power_state=%d\n",
 		__func__, ctrl_pdata, ctrl_pdata->ndx, power_state);
@@ -1527,6 +1530,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int cur_power_state;
+	struct platform_device *pdev;
+	struct dsi_buf *tp;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1535,6 +1540,20 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+
+	pdev = mdss_res->pdev;
+	tp = &ctrl_pdata->tx_buf;
+	if (!ctrl_pdata->mdss_util->iommu_attached())
+		pr_err("%s : iommu not attached\n", __func__);
+
+	ret = mdss_smmu_dma_alloc_coherent(&pdev->dev, SZ_4K, &tp->dmap,
+		&ctrl_pdata->dma_addr, (void *)&tp->start, GFP_KERNEL,
+			MDSS_IOMMU_DOMAIN_UNSECURE);
+	if (IS_ERR_VALUE((unsigned long)ret))
+		pr_err("%s : mdss_smmu_dma_alloc_coherent failed\n", __func__);
+
+	tp->end = tp->start + SZ_4K;
+	tp->size = SZ_4K;
 
 	if (ctrl_pdata->debugfs_info)
 		mdss_dsi_validate_debugfs_info(ctrl_pdata);
@@ -3001,13 +3020,6 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
-#ifdef CONFIG_MACH_XIAOMI_C6
-		if (!strcmp(panel_name, "qcom,mdss_dsi_otm1911_fhd_video"))
-			panel_suspend_reset_flag = 2;
-		else if (!strcmp(panel_name, "qcom,mdss_dsi_ili9885_boe_fhd_video"))
-			panel_suspend_reset_flag = 3;
-		else
-#endif
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
 
@@ -4191,54 +4203,6 @@ static int mdss_dsi_parse_ctrl_params(struct platform_device *ctrl_pdev,
 
 }
 
-#ifdef CONFIG_MACH_XIAOMI_C6
-u32 te_count;
-static irqreturn_t te_interrupt(int irq, void *data)
-{
-	disable_irq_nosync(irq);
-	te_count++;
-	enable_irq(irq);
-
-	return IRQ_HANDLED;
-}
-
-int init_te_irq(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
-{
-	int rc = -1;
-	int irq;
-
-	if (gpio_is_valid(ctrl_pdata->disp_te_gpio)) {
-		rc = gpio_request(ctrl_pdata->disp_te_gpio, "te-gpio");
-		if (rc < 0) {
-			pr_err("%s: gpio_request fail rc=%d\n", __func__, rc);
-			return rc ;
-		}
-
-		rc = gpio_direction_input(ctrl_pdata->disp_te_gpio);
-		if (rc < 0) {
-			pr_err("%s: gpio_direction_input fail rc=%d\n",
-				__func__, rc);
-			return rc ;
-		}
-
-		irq = gpio_to_irq(ctrl_pdata->disp_te_gpio);
-		pr_debug("%s:liujia irq = %d\n", __func__, irq);
-		rc = request_threaded_irq(irq, te_interrupt, NULL,
-			IRQF_TRIGGER_RISING|IRQF_ONESHOT,
-			"te-irq", ctrl_pdata);
-		if (rc < 0) {
-			pr_err("%s: request_irq fail rc=%d\n", __func__, rc);
-			return rc ;
-		}
-	} else {
-		 pr_err("%s:liujia irq gpio not provided\n", __func__);
-		 return rc;
-	}
-
-	return 0;
-}
-#endif /* MACH_XIAOMI_C6 */
-
 static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -4413,12 +4377,6 @@ int dsi_panel_device_register(struct platform_device *ctrl_pdev,
 		ctrl_pdata->check_status = mdss_dsi_reg_status_check;
 	else if (ctrl_pdata->status_mode == ESD_BTA)
 		ctrl_pdata->check_status = mdss_dsi_bta_status_check;
-#ifdef CONFIG_MACH_XIAOMI_C6
-	else if (ctrl_pdata->status_mode == ESD_TE_NT35596) {
-		ctrl_pdata->check_status = mdss_dsi_TE_NT35596_check;
-		init_te_irq(ctrl_pdata);
-	}
-#endif
 
 	if (ctrl_pdata->status_mode == ESD_MAX) {
 		pr_err("%s: Using default BTA for ESD check\n", __func__);
