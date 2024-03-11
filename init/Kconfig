@@ -16,12 +16,6 @@ config DEFCONFIG_LIST
 	default "$ARCH_DEFCONFIG"
 	default "arch/$ARCH/defconfig"
 
-config TOOLS_SUPPORT_RELR
-	bool "Declare tool support for RELR"
-	# Prevent this from being enabled by default in allyesconfig or
-	# allmodconfig builds.
-	depends on !COMPILE_TEST
-
 config CONSTRUCTORS
 	bool
 	depends on !UML
@@ -1385,16 +1379,6 @@ config SCHED_CORE_CTL
 
 	  If unsure, say N here.
 
-config SCHED_CORE_ROTATE
-	bool "Scheduler core rotation"
-	depends on SMP
-	help
-	  This options enables the core rotation functionality in
-	  the scheduler. Scheduler with core rotation aims to utilize
-	  CPUs evenly.
-
-	  If unsure, say N here.
-
 config CHECKPOINT_RESTORE
 	bool "Checkpoint/restore support" if EXPERT
 	select PROC_CHILDREN
@@ -1775,7 +1759,6 @@ config PRINTK_NMI
 
 config BUG
 	bool "BUG() support" if EXPERT
-	default y
 	help
           Disabling this option eliminates support for BUG and WARN, reducing
           the size of your kernel image and potentially quietly ignoring
@@ -2027,7 +2010,6 @@ config VM_EVENT_COUNTERS
 	  if VM event counters are disabled.
 
 config SLUB_DEBUG
-	default y
 	bool "Enable SLUB debugging support" if EXPERT
 	depends on SLUB && SYSFS
 	help
@@ -2052,7 +2034,6 @@ config SLUB_MEMCG_SYSFS_ON
 
 config COMPAT_BRK
 	bool "Disable heap randomization"
-	default y
 	help
 	  Randomizing heap placement makes heap exploits harder, but it
 	  also breaks ancient binaries (including anything libc5 based).

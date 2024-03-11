@@ -5,7 +5,10 @@
 # A mix between the arm64 and arm vDSO Makefiles.
 
 ifeq ($(cc-name),clang)
-  CC_ARM32 := $(CC) $(CLANG_TARGET_ARM32) -no-integrated-as $(CLANG_GCC32_TC) $(CLANG_PREFIX32)
+  CC_ARM32 := $(CC) $(CLANG_TARGET_ARM32) $(CLANG_GCC32_TC) $(CLANG_PREFIX32)
+  ifneq ($(LLVM_IAS),1)
+    CC_ARM32 += -no-integrated-as
+  endif
 else
   CC_ARM32 ?= $(CROSS_COMPILE_ARM32)$(cc-name)
 endif
@@ -25,11 +28,10 @@ cc32-ldoption = $(call try-run,\
 # arm64 one.
 # As a result we set our own flags here.
 
-# From top-level Makefile
-# NOSTDINC_FLAGS
-VDSO_CPPFLAGS := -nostdinc -isystem $(shell $(CC_ARM32) -print-file-name=include)
+# KBUILD_CPPFLAGS and NOSTDINC_FLAGS from top-level Makefile
+VDSO_CPPFLAGS := -D__KERNEL__ -nostdinc
+VDSO_CPPFLAGS += -isystem $(shell $(CC_ARM32) -print-file-name=include 2>/dev/null)
 VDSO_CPPFLAGS += $(LINUXINCLUDE)
-VDSO_CPPFLAGS += $(KBUILD_CPPFLAGS)
 
 # Common C and assembly flags
 # From top-level Makefile
@@ -37,9 +39,6 @@ VDSO_CAFLAGS := $(VDSO_CPPFLAGS)
 VDSO_CAFLAGS += $(call cc32-option,-fno-PIE)
 ifdef CONFIG_DEBUG_INFO
 VDSO_CAFLAGS += -g
-endif
-ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC_ARM32)), y)
-VDSO_CAFLAGS += -DCC_HAVE_ASM_GOTO
 endif
 
 # From arm Makefile
@@ -58,8 +57,13 @@ VDSO_CAFLAGS += -DDISABLE_BRANCH_PROFILING
 # Try to compile for ARMv8. If the compiler is too old and doesn't support it,
 # fall back to v7. There is no easy way to check for what architecture the code
 # is being compiled, so define a macro specifying that (see arch/arm/Makefile).
+ifndef CONFIG_ARCH_MSM8953
 VDSO_CAFLAGS += $(call cc32-option,-march=armv8-a -D__LINUX_ARM_ARCH__=8,\
                                    -march=armv7-a -D__LINUX_ARM_ARCH__=7)
+else
+# Always compile for ARMv8 as compilers supported by AOSP support this.
+VDSO_CAFLAGS += -D__LINUX_ARM_ARCH__=8
+endif
 
 VDSO_CFLAGS := $(VDSO_CAFLAGS)
 # KBUILD_CFLAGS from top-level Makefile
@@ -102,6 +106,26 @@ endif
 
 VDSO_AFLAGS := $(VDSO_CAFLAGS)
 VDSO_AFLAGS += -D__ASSEMBLY__
+
+# Makefile doesn't provide any way to check for 32-bit compiler version and we want to mess with it
+# as minimum as possible.
+ifdef CONFIG_ARCH_MSM8953
+ifeq ($(cc-name),clang)
+# big.LITTLE / DynamIQ optimizations are not supported
+MACH32_CFLAGS := $(call cc32-option, -mcpu=cortex-a53)
+MACH32_CFLAGS += $(call cc32-option, -mtune=cortex-a53)
+else
+MACH32_CFLAGS := $(call cc32-option, -mcpu=cortex-a53, \
+		  $(call cc32-option, -mcpu=cortex-a53))
+MACH32_CFLAGS += $(call cc32-option, -mcpu=cortex-a53, \
+		  $(call cc32-option, -mtune=cortex-a53))
+endif
+# Assembler doesn't like big.LITTLE / DynamIQ setup so we optimize assembly codes for LITTLE CPU
+MACH32_AFLAGS := -Wa,$(strip $(call cc32-option, -mcpu=cortex-a53))
+# Append result to VDSO_CFLAGS and VDSO_AFLAGS
+VDSO_CFLAGS += $(strip $(MACH32_CFLAGS) $(MACH32_AFLAGS))
+VDSO_AFLAGS += $(strip $(MACH32_AFLAGS))
+endif
 
 VDSO_LDFLAGS := $(VDSO_CPPFLAGS)
 # From arm vDSO Makefile
@@ -175,7 +199,7 @@ quiet_cmd_vdsosym = VDSOSYM $@
       cmd_vdsosym = $(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@
 
 # Install commands for the unstripped file
-quiet_cmd_vdso_install = INSTALL $@
+quiet_cmd_vdso_install = INSTALL32 $@
       cmd_vdso_install = cp $(obj)/$@.dbg $(MODLIB)/vdso/vdso32.so
 
 vdso.so: $(obj)/vdso.so.dbg

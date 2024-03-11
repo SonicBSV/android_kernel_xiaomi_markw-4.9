@@ -1372,7 +1372,7 @@ hdd_extract_assigned_int_from_str
 
     while ((SPACE_ASCII_VALUE  == *pInPtr) && ('\0' !=  *pInPtr)) pInPtr++;
 
-    val = sscanf(pInPtr, "%32s ", buf);
+    val = sscanf(pInPtr, "%31s ", buf);
     if (val < 0 && val > strlen(pInPtr))
     {
         return NULL;
@@ -9095,7 +9095,7 @@ done:
    return ret;
 }
 
-static int hdd_open_cesium_nl_sock()
+static int hdd_open_cesium_nl_sock(void)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
    struct netlink_kernel_cfg cfg = {
@@ -9126,7 +9126,7 @@ static int hdd_open_cesium_nl_sock()
    return ret;
 }
 
-static void hdd_close_cesium_nl_sock()
+static void hdd_close_cesium_nl_sock(void)
 {
    if (NULL != cesium_nl_srv_sock)
    {
@@ -13972,8 +13972,7 @@ void wlan_hdd_defer_scan_init_work(hdd_context_t *pHddCtx,
         pHddCtx->scan_ctxt.attempt = 0;
         pHddCtx->scan_ctxt.magic = TDLS_CTX_MAGIC;
     }
-    queue_delayed_work(system_freezable_power_efficient_wq,
-                          &pHddCtx->scan_ctxt.scan_work, delay);
+    schedule_delayed_work(&pHddCtx->scan_ctxt.scan_work, delay);
 }
 
 void wlan_hdd_init_deinit_defer_scan_context(scan_context_t *scan_ctx)

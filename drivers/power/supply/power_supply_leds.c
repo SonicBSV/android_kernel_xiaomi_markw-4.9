@@ -31,7 +31,6 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 	dev_dbg(&psy->dev, "%s %d\n", __func__, status.intval);
 
 	switch (status.intval) {
-
 	case POWER_SUPPLY_STATUS_FULL:
 		led_trigger_event(psy->charging_full_trig, LED_FULL);
 		led_trigger_event(psy->charging_trig, LED_OFF);
@@ -53,13 +52,11 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 		led_trigger_event(psy->charging_blink_full_solid_trig,
 			LED_OFF);
 		break;
-
 	}
 }
 
 static int power_supply_create_bat_triggers(struct power_supply *psy)
 {
-
 	psy->charging_full_trig_name = kasprintf(GFP_KERNEL,
 					"%s-charging-or-full", psy->desc->name);
 	if (!psy->charging_full_trig_name)

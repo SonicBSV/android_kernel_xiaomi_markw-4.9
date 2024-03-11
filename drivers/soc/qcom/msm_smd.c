@@ -143,49 +143,25 @@ void *smsm_log_ctx;
 #define NUM_LOG_PAGES 4
 
 #define IPC_LOG_SMD(level, x...) do { \
-	if (smd_log_ctx) \
-		ipc_log_string(smd_log_ctx, x); \
-	else \
-		printk(level x); \
+	printk(level x); \
 	} while (0)
 
 #define IPC_LOG_SMSM(level, x...) do { \
-	if (smsm_log_ctx) \
-		ipc_log_string(smsm_log_ctx, x); \
-	else \
-		printk(level x); \
+	printk(level x); \
 	} while (0)
 
 #if defined(CONFIG_MSM_SMD_DEBUG)
-#define SMD_DBG(x...) do {				\
-		if (msm_smd_debug_mask & MSM_SMD_DEBUG) \
-			IPC_LOG_SMD(KERN_DEBUG, x);	\
-	} while (0)
+#define SMD_DBG(x...) ((void)0)
 
-#define SMSM_DBG(x...) do {					\
-		if (msm_smd_debug_mask & MSM_SMSM_DEBUG)	\
-			IPC_LOG_SMSM(KERN_DEBUG, x);		\
-	} while (0)
+#define SMSM_DBG(x...) ((void)0)
 
-#define SMD_INFO(x...) do {				\
-		if (msm_smd_debug_mask & MSM_SMD_INFO)	\
-			IPC_LOG_SMD(KERN_INFO, x);	\
-	} while (0)
+#define SMD_INFO(x...) ((void)0)
 
-#define SMSM_INFO(x...) do {				\
-		if (msm_smd_debug_mask & MSM_SMSM_INFO) \
-			IPC_LOG_SMSM(KERN_INFO, x);	\
-	} while (0)
+#define SMSM_INFO(x...) ((void)0)
 
-#define SMD_POWER_INFO(x...) do {				\
-		if (msm_smd_debug_mask & MSM_SMD_POWER_INFO)	\
-			IPC_LOG_SMD(KERN_INFO, x);		\
-	} while (0)
+#define SMD_POWER_INFO(x...) ((void)0)
 
-#define SMSM_POWER_INFO(x...) do {				\
-		if (msm_smd_debug_mask & MSM_SMSM_POWER_INFO)	\
-			IPC_LOG_SMSM(KERN_INFO, x);		\
-	} while (0)
+#define SMSM_POWER_INFO(x...) ((void)0)
 #else
 #define SMD_DBG(x...) do { } while (0)
 #define SMSM_DBG(x...) do { } while (0)
@@ -278,7 +254,7 @@ static void *smd_memcpy32_to_fifo(void *dest, const void *src, size_t num_bytes)
 	num_bytes /= sizeof(uint32_t);
 
 	while (num_bytes--)
-		__raw_writel_no_log(*src_local++, dest_local++);
+		__raw_writel(*src_local++, dest_local++);
 
 	return dest;
 }
@@ -311,7 +287,7 @@ static void *smd_memcpy32_from_fifo(void *dest, const void *src,
 	num_bytes /= sizeof(uint32_t);
 
 	while (num_bytes--)
-		*dest_local++ = __raw_readl_no_log(src_local++);
+		*dest_local++ = __raw_readl(src_local++);
 
 	return dest;
 }
