@@ -7,6 +7,4 @@ void on_post_fs_data(void);
 
 bool ksu_is_safe_mode(void);
 
-extern int ksu_version __read_mostly;
-
 #endif
