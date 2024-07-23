@@ -6731,7 +6731,8 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 		pr_warn("problem creating link to mdss_fb sysfs\n");
 
 	if (mfd->panel_info->type == MIPI_VIDEO_PANEL ||
-	    mfd->panel_info->type == DTV_PANEL) {
+	    mfd->panel_info->type == DTV_PANEL ||
+	    mfd->panel_info->type == MIPI_CMD_PANEL) {
 		rc = sysfs_create_group(&dev->kobj,
 			&dynamic_fps_fs_attrs_group);
 		if (rc) {
