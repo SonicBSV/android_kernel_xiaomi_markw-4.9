@@ -19,7 +19,7 @@
 #include <linux/mount.h>
 #include <linux/fcntl.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/personality.h>
 #include <linux/pagemap.h>
@@ -361,7 +361,7 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
 
 #ifdef CONFIG_KSU
 extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
-			        int *flags);
+			 int *flags);
 #endif
 
 /*
