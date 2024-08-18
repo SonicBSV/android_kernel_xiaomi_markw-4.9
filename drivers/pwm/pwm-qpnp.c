@@ -2269,7 +2269,8 @@ static int qpnp_pwm_probe(struct platform_device *pdev)
 	pwm_chip->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pwm_chip->regmap) {
 		dev_err(&pdev->dev, "Couldn't get parent's regmap\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto failed_regmap;
 	}
 
 	spin_lock_init(&pwm_chip->lpg_lock);
@@ -2306,6 +2307,7 @@ failed_insert:
 	kfree(pwm_chip->lpg_config.lut_config.duty_pct_list);
 failed_config:
 	dev_set_drvdata(&pdev->dev, NULL);
+failed_regmap:
 	kfree(pwm_chip);
 	return rc;
 }
