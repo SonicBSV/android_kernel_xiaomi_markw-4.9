@@ -701,7 +701,9 @@ static void handle_sys_init_done(enum hal_command_response cmd, void *data)
 	core->dec_codec_supported = sys_init_msg->dec_codec_supported;
 
 	/* This should come from sys_init_done */
-	core->resources.max_inst_count = 16;
+	core->resources.max_inst_count =
+		sys_init_msg->max_sessions_supported ? :
+		MAX_SUPPORTED_INSTANCES;
 
 	core->resources.max_secure_inst_count =
 		core->resources.max_secure_inst_count ? :
