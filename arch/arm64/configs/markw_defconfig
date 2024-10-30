@@ -731,3 +731,7 @@ CONFIG_QMI_ENCDEC=y
 # KSU
 #
 CONFIG_KSU=y
+
+# Boeffla wakelock blocker
+#
+CONFIG_BOEFFLA_WL_BLOCKER=y
