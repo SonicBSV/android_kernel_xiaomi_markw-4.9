@@ -4049,49 +4049,45 @@ csrIsPMFCapabilitiesInRSNMatch( tHalHandle hHal,
     if (pRSNIe && pFilterMFPEnabled && pFilterMFPCapable && pFilterMFPRequired)
     {
        /* Extracting MFPCapable bit from RSN Ie */
-       apProfileMFPCapable  = (pRSNIe->RSN_Cap[0] >> 7) & 0x1;
+       apProfileMFPCapable = (pRSNIe->RSN_Cap[0] >> 7) & 0x1;
        apProfileMFPRequired = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
-       if (*pFilterMFPEnabled && *pFilterMFPCapable && *pFilterMFPRequired
-           && (apProfileMFPCapable == 0))
-       {
-           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                     "AP is not capable to make PMF connection");
-           return VOS_FALSE;
-       }
-       else if (*pFilterMFPEnabled && *pFilterMFPCapable &&
-                !(*pFilterMFPRequired) && (apProfileMFPCapable == 0))
-       {
-           /*
-            * This is tricky, because supplicant asked us to make mandatory
-            * PMF connection eventhough PMF connection is optional here.
-            * so if AP is not capable of PMF then drop it. Don't try to
-            * connect with it.
-            */
-           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-           "we need PMF connection & AP isn't capable to make PMF connection");
-           return VOS_FALSE;
-       }
-       else if (!(*pFilterMFPCapable) &&
-                apProfileMFPCapable && apProfileMFPRequired)
-       {
-           /*
-            * In this case, AP with whom we trying to connect requires
-            * mandatory PMF connections and we are not capable so this AP
-            * is not good choice to connect
-            */
-           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-           "AP needs PMF connection and we are not capable of pmf connection");
-           return VOS_FALSE;
-       }
-       else if (!(*pFilterMFPEnabled) && *pFilterMFPCapable &&
-                (apProfileMFPCapable == 1))
-       {
-           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-           "we don't need PMF connection eventhough both parties are capable");
-           return VOS_FALSE;
+
+       /* Handle PMF connection logic */
+       if (*pFilterMFPEnabled) {
+           if (*pFilterMFPCapable) {
+               /* Case 1: PMF is globally enabled and required */
+               if (*pFilterMFPRequired) {
+                   if (!apProfileMFPCapable) {
+                       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                                 "PMF required but AP is not PMF capable");
+                       return VOS_FALSE;
+                   }
+               } else {
+                   /* Case 2: PMF is globally optional */
+                   if (!apProfileMFPCapable && apProfileMFPRequired) {
+                       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                                 "PMF optional but AP requires PMF; cannot connect");
+                       return VOS_FALSE;
+                   }
+               }
+           } else {
+               /* Case 3: Device does not support PMF, but AP requires it */
+               if (apProfileMFPCapable && apProfileMFPRequired) {
+                   VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                             "AP requires PMF but device is not capable of PMF");
+                   return VOS_FALSE;
+               }
+           }
+       } else {
+           /* Case 4: PMF is globally disabled */
+           if (apProfileMFPCapable) {
+               VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                         "PMF disabled but AP supports PMF; ignoring PMF capability");
+           }
        }
     }
-    return VOS_TRUE;
+       return VOS_TRUE;
+
 }
 #endif
 
