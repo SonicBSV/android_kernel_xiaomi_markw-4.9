@@ -47,6 +47,8 @@ MODULE_PARM_DESC(record_size,
 
 #if defined(CONFIG_MACH_XIAOMI_C6) || defined(CONFIG_MACH_XIAOMI_D2)
 static ulong ramoops_console_size = 512*1024UL;
+#elif defined CONFIG_MACH_XIAOMI_MARKW
+static ulong ramoops_console_size = 256*1024UL;
 #else
 static ulong ramoops_console_size = MIN_MEM_SIZE;
 #endif

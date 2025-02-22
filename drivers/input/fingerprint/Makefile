@@ -1,2 +1,4 @@
 obj-$(CONFIG_FINGERPRINT_GOODIX_GF3208_C6)	+= goodix_mido/
 obj-$(CONFIG_FINGERPRINT_FPC1020_C6)		+= fpc_mido/
+obj-$(CONFIG_FINGERPRINT_GOODIX_GF3208_MARKW)	+= goodix_markw/
+obj-$(CONFIG_FINGERPRINT_FPC1020_MARKW)		+= fpc_markw/

@@ -317,10 +317,20 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 				wcd_enable_curr_micbias(mbhc,
 						WCD_MBHC_EN_PULLUP);
 			} else {
-				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+				wcd_enable_curr_micbias(mbhc,
+							WCD_MBHC_EN_MB);
+#else
+				wcd_enable_curr_micbias(mbhc,
+							WCD_MBHC_EN_CS);
+#endif
 			}
 		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+#else
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+#endif
 		} else {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
 		}

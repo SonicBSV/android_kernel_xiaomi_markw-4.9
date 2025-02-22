@@ -59,6 +59,22 @@ static bool __power_supply_is_supplied_by(struct power_supply *supplier,
 	return false;
 }
 
+#ifdef CONFIG_MACH_XIAOMI_MARKW
+int power_supply_get_battery_charge_state(struct power_supply *psy)
+{
+	union power_supply_propval ret = {0,};
+	if (!psy) {
+		 pr_err("power supply is NULL\n");
+	}
+	if (power_supply_get_property) {
+		power_supply_get_property(psy, POWER_SUPPLY_PROP_PRESENT, &ret);
+	}
+	pr_debug("online:%d\n", ret.intval);
+	return ret.intval;
+}
+EXPORT_SYMBOL(power_supply_get_battery_charge_state);
+#endif
+
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
 	struct power_supply *psy = data;

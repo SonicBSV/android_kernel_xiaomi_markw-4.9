@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1621,7 +1621,7 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 				msm_camera_enable_i2c_mux(ctrl->i2c_conf);
 			break;
 		default:
-			pr_debug("%s error power seq type %d\n", __func__,
+			pr_err("%s error power seq type %d\n", __func__,
 				power_setting->seq_type);
 			break;
 		}
@@ -1681,7 +1681,7 @@ power_up_failed:
 				msm_camera_disable_i2c_mux(ctrl->i2c_conf);
 			break;
 		default:
-			pr_debug("%s error power seq type %d\n", __func__,
+			pr_err("%s error power seq type %d\n", __func__,
 				power_setting->seq_type);
 			break;
 		}
@@ -1811,7 +1811,7 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 				msm_camera_disable_i2c_mux(ctrl->i2c_conf);
 			break;
 		default:
-			pr_debug("%s error power seq type %d\n", __func__,
+			pr_err("%s error power seq type %d\n", __func__,
 				pd->seq_type);
 			break;
 		}

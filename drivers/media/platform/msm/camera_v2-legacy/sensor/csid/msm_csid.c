@@ -62,11 +62,7 @@
 #define FALSE  0
 
 #define MAX_LANE_COUNT 4
-#ifdef CONFIG_MACH_XIAOMI_C6
-#define CSID_TIMEOUT msecs_to_jiffies(500)
-#else
 #define CSID_TIMEOUT msecs_to_jiffies(100)
-#endif
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -236,7 +232,6 @@ static int msm_csid_reset(struct csid_device *csid_dev)
 	int32_t rc = 0;
 	uint32_t irq = 0, irq_bitshift;
 
-	irq_bitshift = csid_dev->ctrl_reg->csid_reg.csid_rst_done_irq_bitshift;
 	msm_camera_io_w(csid_dev->ctrl_reg->csid_reg.csid_rst_stb_all,
 		csid_dev->base +
 		csid_dev->ctrl_reg->csid_reg.csid_rst_cmd_addr);
@@ -248,8 +243,9 @@ static int msm_csid_reset(struct csid_device *csid_dev)
 	} else if (rc == 0) {
 		irq = msm_camera_io_r(csid_dev->base +
 			csid_dev->ctrl_reg->csid_reg.csid_irq_status_addr);
-		pr_err_ratelimited("%s CSID%d_IRQ_STATUS_ADDR = 0x%x\n",
+		CDBG("%s CSID%d_IRQ_STATUS_ADDR = 0x%x\n",
 			__func__, csid_dev->pdev->id, irq);
+		irq_bitshift = csid_dev->ctrl_reg->csid_reg.csid_rst_done_irq_bitshift;
 		if (irq & (0x1 << irq_bitshift)) {
 			rc = 1;
 			CDBG("%s succeeded", __func__);
@@ -498,7 +494,7 @@ static irqreturn_t msm_csid_irq(int irq_num, void *data)
 
 	irq = msm_camera_io_r(csid_dev->base +
 		csid_dev->ctrl_reg->csid_reg.csid_irq_status_addr);
-	pr_err_ratelimited("%s CSID%d_IRQ_STATUS_ADDR = 0x%x\n",
+	CDBG("%s CSID%d_IRQ_STATUS_ADDR = 0x%x\n",
 		 __func__, csid_dev->pdev->id, irq);
 	if (irq & (0x1 <<
 		csid_dev->ctrl_reg->csid_reg.csid_rst_done_irq_bitshift))
@@ -546,7 +542,7 @@ static int msm_csid_init(struct csid_device *csid_dev, uint32_t *csid_version)
 		return rc;
 	}
 
-	pr_info("%s: CSID_VERSION = 0x%x\n", __func__,
+	CDBG("%s: CSID_VERSION = 0x%x\n", __func__,
 		csid_dev->ctrl_reg->csid_reg.csid_version);
 	/* power up */
 	rc = msm_camera_config_vreg(&csid_dev->pdev->dev, csid_dev->csid_vreg,

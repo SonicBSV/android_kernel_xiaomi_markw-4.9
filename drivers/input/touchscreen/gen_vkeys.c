@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/input.h>
 #include <linux/input/gen_vkeys.h>
 
@@ -30,31 +32,119 @@
 #define BORDER_ADJUST_NUM 3
 #define BORDER_ADJUST_DENOM 4
 
-static struct kobject *vkey_obj;
-static char *vkey_buf;
+struct vkey_sysfs_data {
+	struct list_head	entry;
+	struct device		*dev;
+	struct kobj_attribute	attr;
+	char			buf[MAX_BUF_SIZE];
+};
+
+static LIST_HEAD(vkey_list_head);
+static DEFINE_MUTEX(vkey_mutex);
+
+static struct kobject *vkey_obj = NULL;
+static struct attribute *vkey_attr = NULL;
+static struct attribute_group vkey_grp = {
+	.attrs = &vkey_attr,
+};
 
 static ssize_t vkey_show(struct kobject  *obj,
 		struct kobj_attribute *attr, char *buf)
 {
-	strlcpy(buf, vkey_buf, MAX_BUF_SIZE);
+	struct vkey_sysfs_data *sysfs_data;
+
+	sysfs_data = container_of(attr, struct vkey_sysfs_data, attr);
+	strlcpy(buf, sysfs_data->buf, MAX_BUF_SIZE);
 	return strnlen(buf, MAX_BUF_SIZE);
 }
 
-static struct kobj_attribute vkey_obj_attr = {
-	.attr = {
-		.mode = 0444,
-	},
-	.show = vkey_show,
-};
+static struct vkey_sysfs_data * find_dev(struct device *dev)
+{
+	struct list_head *pos;
+	struct vkey_sysfs_data *sysfs_data;
 
-static struct attribute *vkey_attr[] = {
-	&vkey_obj_attr.attr,
-	NULL,
-};
+	list_for_each(pos, &vkey_list_head) {
+		sysfs_data = list_entry(pos, struct vkey_sysfs_data, entry);
+		if (sysfs_data->dev == dev)
+			return sysfs_data;
+	}
+	return NULL;
+}
 
-static struct attribute_group vkey_grp = {
-	.attrs = vkey_attr,
-};
+static int create_sysfs_dir(struct device *dev)
+{
+	int ret = 0;
+
+	mutex_lock(&vkey_mutex);
+
+	if (vkey_obj == NULL) {
+		vkey_obj = kobject_create_and_add("board_properties", NULL);
+		if (!vkey_obj) {
+			ret = -ENOMEM;
+			dev_err(dev, "unable to create kobject\n");
+			goto end;
+		}
+
+		ret = sysfs_create_group(vkey_obj, &vkey_grp);
+		if (ret) {
+			kobject_put(vkey_obj);
+			vkey_obj = NULL;
+			dev_err(dev, "failed to create attributes\n");
+		}
+	}
+
+    end:
+	mutex_unlock(&vkey_mutex);
+	return ret;
+}
+
+static int add_sysfs_file(struct device *dev, struct vkey_sysfs_data *sysfs_data)
+{
+	int ret = 0;
+
+	mutex_lock(&vkey_mutex);
+
+	if (find_dev(dev) != NULL) {
+		ret = -EEXIST;
+		dev_err(dev, "gen-vkeys device is registered already\n");
+		goto end;
+	}
+
+	ret = sysfs_add_file_to_group(vkey_obj, &sysfs_data->attr.attr, NULL);
+	if (ret) {
+		dev_err(dev, "failed to create attributes\n");
+		goto end;
+	}
+
+	sysfs_data->dev = dev;
+	list_add(&sysfs_data->entry, &vkey_list_head);
+
+    end:
+	mutex_unlock(&vkey_mutex);
+	return ret;
+}
+
+static int remove_sysfs_file(struct device *dev)
+{
+	struct vkey_sysfs_data *sysfs_data;
+
+	mutex_lock(&vkey_mutex);
+
+	sysfs_data = find_dev(dev);
+	if (sysfs_data != NULL) {
+		list_del(&sysfs_data->entry);
+		sysfs_remove_file_from_group(vkey_obj, &sysfs_data->attr.attr, NULL);
+	}
+
+	if (list_empty(&vkey_list_head)) {
+		sysfs_remove_group(vkey_obj, &vkey_grp);
+		kobject_put(vkey_obj);
+		vkey_obj = NULL;
+	}
+
+	mutex_unlock(&vkey_mutex);
+	return 0;
+}
 
 static int vkey_parse_dt(struct device *dev,
 			struct vkeys_platform_data *pdata)
@@ -121,20 +211,19 @@ static int vkey_parse_dt(struct device *dev,
 
 static int vkeys_probe(struct platform_device *pdev)
 {
+	struct vkey_sysfs_data *sysfs_data;
 	struct vkeys_platform_data *pdata;
 	int width, height, center_x, center_y;
 	int x1 = 0, x2 = 0, i, c = 0, ret, border;
 	char *name;
 
-	vkey_buf = devm_kzalloc(&pdev->dev, MAX_BUF_SIZE, GFP_KERNEL);
-	if (!vkey_buf)
-		return -ENOMEM;
-
 	if (pdev->dev.of_node) {
 		pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct vkeys_platform_data), GFP_KERNEL);
-		if (!pdata)
+		if (!pdata) {
+			dev_err(&pdev->dev, "Failed to allocate memory\n");
 			return -ENOMEM;
+		}
 
 		ret = vkey_parse_dt(&pdev->dev, pdata);
 		if (ret) {
@@ -150,6 +239,10 @@ static int vkeys_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	sysfs_data = devm_kzalloc(&pdev->dev, sizeof(struct vkey_sysfs_data), GFP_KERNEL);
+	if (!sysfs_data)
+		return -ENOMEM;
+
 	border = (pdata->panel_maxx - pdata->disp_maxx) * 2;
 	width = ((pdata->disp_maxx - (border * (pdata->num_keys - 1)))
 			/ pdata->num_keys);
@@ -163,13 +256,13 @@ static int vkeys_probe(struct platform_device *pdev)
 		x1 = x2 + border;
 		x2 = x2 + border + width;
 		center_x = x1 + (x2 - x1) / 2;
-		c += snprintf(vkey_buf + c, MAX_BUF_SIZE - c,
+		c += snprintf(sysfs_data->buf + c, MAX_BUF_SIZE - c,
 				"%s:%d:%d:%d:%d:%d\n",
 				VKEY_VER_CODE, pdata->keycodes[i],
 				center_x, center_y, width, height);
 	}
 
-	vkey_buf[c] = '\0';
+	sysfs_data->buf[c] = '\0';
 
 	name = devm_kzalloc(&pdev->dev, sizeof(*name) * MAX_BUF_SIZE,
 					GFP_KERNEL);
@@ -178,36 +271,31 @@ static int vkeys_probe(struct platform_device *pdev)
 
 	snprintf(name, MAX_BUF_SIZE,
 				"virtualkeys.%s", pdata->name);
-	vkey_obj_attr.attr.name = name;
 
-	vkey_obj = kobject_create_and_add("board_properties", NULL);
-	if (!vkey_obj) {
-		dev_err(&pdev->dev, "unable to create kobject\n");
-		return -ENOMEM;
-	}
+	sysfs_data->dev = &pdev->dev;
+	sysfs_data->attr.attr.name = name;
+	sysfs_data->attr.attr.mode = 0444;
+	sysfs_data->attr.show = vkey_show;
 
-	ret = sysfs_create_group(vkey_obj, &vkey_grp);
+	ret = create_sysfs_dir(&pdev->dev);
+	if (ret)
+		return ret;
+
+	ret = add_sysfs_file(&pdev->dev, sysfs_data);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to create attributes\n");
-		goto destroy_kobj;
+		remove_sysfs_file(NULL);
+		return ret;
 	}
 	return 0;
-
-destroy_kobj:
-	kobject_put(vkey_obj);
-
-	return ret;
 }
 
 static int vkeys_remove(struct platform_device *pdev)
 {
-	sysfs_remove_group(vkey_obj, &vkey_grp);
-	kobject_put(vkey_obj);
-
-	return 0;
+	return remove_sysfs_file(&pdev->dev);
 }
 
-static const struct of_device_id vkey_match_table[] = {
+static struct of_device_id vkey_match_table[] = {
 	{ .compatible = "qcom,gen-vkeys",},
 	{ },
 };

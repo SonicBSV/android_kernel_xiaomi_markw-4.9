@@ -1,0 +1,184 @@
+/*
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&tlmm {
+	fpc_spi_active: fpc_spi_active {
+		mux {
+			pins = "gpio135", "gpio136", "gpio137", "gpio138";
+			function = "blsp_spi7";
+		};
+
+		config {
+			pins = "gpio135", "gpio136", "gpio137", "gpio138";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+	fpc_reset_reset: fpc_reset_reset {
+		mux {
+			pins = "gpio140";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio140";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+	fpc_reset_active: fpc_reset_active {
+		mux {
+			pins = "gpio140";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio140";
+			drive-strength = <2>;
+			bias-disable;
+			output-high;
+		};
+	};
+	fpc_irq_active: fpc_irq_active {
+		mux {
+			pins = "gpio48";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio48";
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+	gpio_led_pins {
+		gpio_led_off: gpio_led_off {
+			mux {
+				pins = "gpio45";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio45";
+				drive-strength = <2>;
+				bias-disable;
+				output-low;
+			};
+		};
+	};
+	goodix_spi_active: goodix_spi_active{
+		mux {
+			pins = "gpio135", "gpio136", "gpio137", "gpio138";
+			function = "blsp_spi7";
+		};
+		config {
+			pins = "gpio135", "gpio136", "gpio137", "gpio138";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+	goodix_reset_reset: goodix_reset_reset{
+		mux {
+			pins = "gpio140";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio140";
+			drive-strength = <2>;
+			bias-disable = <0>;
+			output-low;
+		};
+	};
+	goodix_reset_active: goodix_reset_active{
+		mux {
+			pins = "gpio140";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio140";
+			drive-strength = <2>;
+			bias-disable = <0>;
+			output-high;
+		};
+	};
+	goodix_irq_active: goodix_irq_active {
+		mux {
+			pins = "gpio48";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio48";
+			drive-strength = <2>;
+			bias-disable = <0>;
+			input-enable;
+		};
+	};
+
+	/delete-node/ pmx_ts_int_active;
+	/delete-node/ pmx_ts_int_suspend;
+	/delete-node/ pmx_ts_reset_active;
+	/delete-node/ pmx_ts_reset_suspend;
+	pmx_ts_active {
+		ts_int_active: ts_int_active {
+			mux {
+				pins = "gpio65";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio65";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		};
+
+		ts_reset_active: ts_reset_active {
+			mux {
+				pins = "gpio64";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio64";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		};
+	};
+	pmx_ts_suspend {
+		ts_int_suspend: ts_int_suspend {
+			mux {
+				pins = "gpio65";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio65";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		ts_reset_suspend: ts_reset_suspend {
+			mux {
+				pins = "gpio64";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio64";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+};
+

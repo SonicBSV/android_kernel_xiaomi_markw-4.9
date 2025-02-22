@@ -86,17 +86,13 @@ static int32_t msm_sensor_driver_create_i2c_v4l_subdev
 	struct i2c_client *client = s_ctrl->sensor_i2c_client->client;
 
 	CDBG("%s %s I2c probe succeeded\n", __func__, client->name);
-#ifndef CONFIG_MACH_XIAOMI_C6
 	if (0 == s_ctrl->bypass_video_node_creation) {
-#endif
 		rc = camera_init_v4l2(&client->dev, &session_id);
 		if (rc < 0) {
 			pr_err("failed: camera_init_i2c_v4l2 rc %d", rc);
 			return rc;
 		}
-#ifndef CONFIG_MACH_XIAOMI_C6
 	}
-#endif
 
 	CDBG("%s rc %d session_id %d\n", __func__, rc, session_id);
 	snprintf(s_ctrl->msm_sd.sd.name,
@@ -133,17 +129,13 @@ static int32_t msm_sensor_driver_create_v4l_subdev
 	int32_t rc = 0;
 	uint32_t session_id = 0;
 
-#ifndef CONFIG_MACH_XIAOMI_C6
 	if (0 == s_ctrl->bypass_video_node_creation) {
-#endif
 		rc = camera_init_v4l2(&s_ctrl->pdev->dev, &session_id);
 		if (rc < 0) {
 			pr_err("failed: camera_init_v4l2 rc %d", rc);
 			return rc;
 		}
-#ifndef CONFIG_MACH_XIAOMI_C6
 	}
-#endif
 
 	CDBG("rc %d session_id %d", rc, session_id);
 	s_ctrl->sensordata->sensor_info->session_id = session_id;
@@ -684,127 +676,6 @@ static void msm_sensor_fill_sensor_info(struct msm_sensor_ctrl_t *s_ctrl,
 	strlcpy(entity_name, s_ctrl->msm_sd.sd.entity.name, MAX_SENSOR_NAME);
 }
 
-extern int main_module_id;
-extern int sub_module_id;
-static const char *module_info[] = {
-	"Unkonw",
-	"Sunny",
-	"Huaquan",
-	"Fushikang",
-	"Guangzhen",
-	"Daling",
-	"Xinli",
-	"O-film",
-	"Boyi",
-	"Sanglaishi",
-	"Qunhui",
-	"Q-Tech",
-	"Unknow",
-	"Unknow",
-	"Unknow",
-	"Unknow",
-};
-
-static uint16_t fusion_read_id_s5k3l8(struct msm_sensor_ctrl_t *s_ctrl)
-{
-	uint16_t value1, value3, value5;
-
-	struct msm_camera_i2c_client *sensor_i2c_client;
-
-	sensor_i2c_client = s_ctrl->sensor_i2c_client;
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0100, 0x0100, 2);
-	mdelay(10);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0a02, 0x0000, 2);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0a00, 0x0100, 2);
-	mdelay(10);
-	sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x0a24,  &value1, 2);
-	CDBG(" s5k3l8 fusion_sensor_readreg value1 =%d\n", value1);
-	sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x0a26,  &value3, 2);
-	CDBG(" s5k3l8 fusion_sensor_readreg value3 =%d\n", value3);
-	sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x0a28,  &value5, 1);
-	CDBG(" s5k3l8 fusion_sensor_readreg value5 =%d\n", value5);
-
-	return 0;
-}
-
-static uint16_t fusion_read_id_ov5675(struct msm_sensor_ctrl_t *s_ctrl)
-{
-	uint16_t data[15] = {0};
-	uint16_t *p = NULL;
-	uint8_t i;
-	struct msm_camera_i2c_client *sensor_i2c_client;
-
-	sensor_i2c_client = s_ctrl->sensor_i2c_client;
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0100, 0x01, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x5001, 0x02, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d84, 0xC0, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d88, 0x70, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d89, 0x00, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d8a, 0x70, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d8b, 0x0f, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d81, 0x01, 1);
-	mdelay(10);
-
-	p = data;
-	for (i = 0; i < 15; i++) {
-		sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x7000+i, p+i, 1);
-		CDBG("data[%d]=%x\n", i, data[i]);
-	}
-
-	return 0;
-}
-
-static uint16_t fusion_read_id_s5k5e8(struct msm_sensor_ctrl_t *s_ctrl)
-{
-	uint16_t data[8] = {0};
-	uint16_t *p = NULL;
-	uint8_t i;
-	struct msm_camera_i2c_client *sensor_i2c_client;
-
-	sensor_i2c_client = s_ctrl->sensor_i2c_client;
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0a00, 0x04&0x00ff, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0a02, 0x00&0x00ff, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0a00, 0x01&0x00ff, 1);
-	mdelay(10);
-
-	p = data;
-	for (i = 0; i < 8; i++) {
-		sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x0a04+i, p+i, 1);
-		CDBG("data[%d]=%x\n", i, data[i]);
-	}
-
-	return 0;
-}
-
-static uint16_t fusion_read_id_ov13855(struct msm_sensor_ctrl_t *s_ctrl)
-{
-	uint16_t data[16] = {0};
-	uint16_t *p = NULL;
-	uint16_t temp1 = 0x0;
-	uint8_t i;
-	struct msm_camera_i2c_client *sensor_i2c_client;
-
-	sensor_i2c_client = s_ctrl->sensor_i2c_client;
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x0100, 0x01, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x5000, &temp1, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x5000, (0x00 & 0x10) | (temp1 & (~0x10)), 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d84, 0xC0, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d88, 0x70, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d89, 0x00, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d8a, 0x70, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d8b, 0x0f, 1);
-	sensor_i2c_client->i2c_func_tbl->i2c_write(sensor_i2c_client, 0x3d81, 0x01, 1);
-	mdelay(10);
-
-	p = data;
-	for (i = 0; i < 15; i++) {
-		sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 0x7000+i, p+i, 1);
-		CDBG("data[%d]=%x\n", i, data[i]);
-	}
-
-	return 0;
-}
-
 /* static function definition */
 int32_t msm_sensor_driver_probe(void *setting,
 	struct msm_sensor_info_t *probed_info, char *entity_name)
@@ -889,10 +760,8 @@ int32_t msm_sensor_driver_probe(void *setting,
 			slave_info32->sensor_init_params;
 		slave_info->output_format =
 			slave_info32->output_format;
-#ifndef CONFIG_MACH_XIAOMI_C6
 		slave_info->bypass_video_node_creation =
 			!!slave_info32->bypass_video_node_creation;
-#endif
 		kfree(slave_info32);
 	} else
 #endif
@@ -935,10 +804,8 @@ int32_t msm_sensor_driver_probe(void *setting,
 		slave_info->sensor_init_params.position);
 	CDBG("mount %d",
 		slave_info->sensor_init_params.sensor_mount_angle);
-#ifndef CONFIG_MACH_XIAOMI_C6
 	CDBG("bypass video node creation %d",
 		slave_info->bypass_video_node_creation);
-#endif
 	/* Validate camera id */
 	if (slave_info->camera_id >= MAX_CAMERAS) {
 		pr_err("failed: invalid camera id %d max %d",
@@ -1103,24 +970,10 @@ CSID_TG:
 		goto free_camera_info;
 	}
 
-	if (!strcmp(slave_info->sensor_name, "ov13855_sunny")) {
-		fusion_read_id_ov13855(s_ctrl);
-	} else if (!strcmp(slave_info->sensor_name, "s5k3l8_ofilm")) {
-		fusion_read_id_s5k3l8(s_ctrl);
-	} else if (!strcmp(slave_info->sensor_name, "ov5675_ofilm")) {
-		fusion_read_id_ov5675(s_ctrl);
-	} else if (!strcmp(slave_info->sensor_name, "s5k5e8_sunny")) {
-		fusion_read_id_s5k5e8(s_ctrl);
-	} else {
-		printk("read fusion id fail\n");
-	}
-
 	pr_err("%s probe succeeded", slave_info->sensor_name);
 
-#ifndef CONFIG_MACH_XIAOMI_C6
 	s_ctrl->bypass_video_node_creation =
 		slave_info->bypass_video_node_creation;
-#endif
 
 	/*
 	 * Update the subdevice id of flash-src based on availability in kernel.
