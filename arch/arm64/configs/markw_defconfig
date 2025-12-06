@@ -1,4 +1,4 @@
-CONFIG_LOCALVERSION="-Prototype-v4-Re-based"
+CONFIG_LOCALVERSION="-Prototype-v5-Re-based"
 # CONFIG_LOCALVERSION_AUTO is not set
 # CONFIG_FHANDLE is not set
 CONFIG_AUDIT=y
