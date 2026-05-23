@@ -117,6 +117,7 @@
 				qcom,hw-settle-time = <0>;
 				qcom,fast-avg-setup = <0>;
 				qcom,vadc-thermal-node;
+				status = "disabled";
 			};
 
 			chan@43 {
