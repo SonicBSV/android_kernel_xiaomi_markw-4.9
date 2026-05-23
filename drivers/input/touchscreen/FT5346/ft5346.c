@@ -33,6 +33,8 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 
+#include <linux/compiler.h>
+#include <linux/pm_wakeup.h>
 #define FTS_KEY_WIDTH_X		50
 #define FTS_KEY_WIDTH_Y		10
 
@@ -247,14 +249,18 @@ static void ft5x06_update_fw_ver(struct ft5x06_ts_data *data)
 #if WT_CTP_GESTURE_SUPPORT
 static void check_gesture(int gesture_id, struct input_dev *ip_dev)
 {
+	struct ft5x06_ts_data *data = input_get_drvdata(ip_dev);
 
 	switch (gesture_id) {
 	case 0x24:
 		gtp_gesture_value = 'K';
+		/* Force system wake from deep sleep */
+		pm_wakeup_event(&data->client->dev, 500);
 		input_report_key(ip_dev, KEY_WAKEUP, 1);
 		input_sync(ip_dev);
 		input_report_key(ip_dev, KEY_WAKEUP, 0);
 		input_sync(ip_dev);
+		dev_info(&data->client->dev, "Double tap detected, waking system\n");
 		break;
 	default:
 		break;
@@ -278,8 +284,10 @@ static int fts_read_Gesturedata(struct input_dev *ip_dev)
 
 	if (0x24 == buf[0]) {
 		gesture_id = 0x24;
+		/* Immediately signal wakeup before processing */
+		pm_wakeup_event(&gesture_client->dev, 1000);
 		check_gesture(gesture_id, ip_dev);
-		CTP_ERROR("tpd %d check_gesture gesture_id.\n", gesture_id);
+		CTP_DEBUG("Double tap gesture detected (0x24)\n");
 		return -EPERM;
 	}
 
@@ -413,13 +421,17 @@ static irqreturn_t ft5x06_ts_interrupt(int irq, void *dev_id)
 
 #if WT_CTP_GESTURE_SUPPORT
 			if (gtp_gesture_onoff == '1') {
+				static unsigned long last_gesture_time;
 				ret = ft5x0x_read_reg(gesture_client, 0xd0, &state);
-				CTP_DEBUG("in event gesture:%d\n", state);
 				if (ret < 0) {
-					CTP_ERROR("read value fail");
+					CTP_ERROR("read gesture state fail");
 				}
 				if (state == 1) {
-					fts_read_Gesturedata(ip_dev);
+					/* Debounce: ignore gestures within 500ms */
+					if (time_after(jiffies, last_gesture_time + msecs_to_jiffies(500))) {
+						last_gesture_time = jiffies;
+						fts_read_Gesturedata(ip_dev);
+					}
 					return IRQ_HANDLED;
 				}
 			}
@@ -479,45 +491,55 @@ static int ft5x06_power_on(struct ft5x06_ts_data *data, bool on)
 {
 	int rc;
 
-	if (!on)
-		goto power_off;
+	if (on) {
+		if (data->power_enabled)
+			return 0;
 
-	rc = regulator_enable(data->vdd);
+		rc = regulator_enable(data->vdd);
+		if (rc) {
+			dev_err(&data->client->dev,
+				"Regulator vdd enable failed rc=%d\n", rc);
+			return rc;
+		}
+
+		rc = regulator_enable(data->vcc_i2c);
+		if (rc) {
+			dev_err(&data->client->dev,
+				"Regulator vcc-i2c enable failed rc=%d\n", rc);
+			regulator_disable(data->vdd);
+			return rc;
+		}
+
+		data->power_enabled = true;
+		return 0;
+	}
+
+	/* power off */
+	if (!data->power_enabled)
+		return 0;
+
+	/*
+	 * Power-off order: I/O first, then analog.
+	 * This is usually more stable on PM8953/PMI8950 platforms.
+	 */
+	rc = regulator_disable(data->vcc_i2c);
 	if (rc) {
 		dev_err(&data->client->dev,
-			"Regulator vdd enable failed rc=%d\n", rc);
+			"Regulator vcc-i2c disable failed rc=%d\n", rc);
 		return rc;
 	}
 
-	rc = regulator_enable(data->vcc_i2c);
-	if (rc) {
-		dev_err(&data->client->dev,
-			"Regulator vcc_i2c enable failed rc=%d\n", rc);
-		regulator_disable(data->vdd);
-	}
-
-	return rc;
-
-power_off:
 	rc = regulator_disable(data->vdd);
 	if (rc) {
 		dev_err(&data->client->dev,
 			"Regulator vdd disable failed rc=%d\n", rc);
+		/* best-effort recovery */
+		regulator_enable(data->vcc_i2c);
 		return rc;
 	}
 
-	rc = regulator_disable(data->vcc_i2c);
-	if (rc) {
-		dev_err(&data->client->dev,
-			"Regulator vcc_i2c disable failed rc=%d\n", rc);
-		rc = regulator_enable(data->vdd);
-		if (rc) {
-			dev_err(&data->client->dev,
-			"Regulator vdd enable failed rc=%d\n", rc);
-		}
-	}
-
-	return rc;
+	data->power_enabled = false;
+	return 0;
 }
 
 static int ft5x06_power_init(struct ft5x06_ts_data *data, bool on)
@@ -545,11 +567,11 @@ static int ft5x06_power_init(struct ft5x06_ts_data *data, bool on)
 		}
 	}
 
-	data->vcc_i2c = regulator_get(&data->client->dev, "vcc_i2c");
+	data->vcc_i2c = regulator_get(&data->client->dev, "vcc-i2c");
 	if (IS_ERR(data->vcc_i2c)) {
 		rc = PTR_ERR(data->vcc_i2c);
 		dev_err(&data->client->dev,
-			"Regulator get failed vcc_i2c rc=%d\n", rc);
+			"Regulator get failed vcc-i2c rc=%d\n", rc);
 		goto reg_vdd_set_vtg;
 	}
 
@@ -667,6 +689,7 @@ static int ft5x06_ts_suspend(struct device *dev)
 
 #if WT_CTP_GESTURE_SUPPORT
 	if (gtp_gesture_onoff == '1') {
+		/* Enable gesture mode on controller */
 		ft5x0x_write_reg(gesture_client, 0xd0, 0x01);
 		if (fts_updateinfo_curr.CHIP_ID == 0x54 || fts_updateinfo_curr.CHIP_ID == 0x58) {
 			ft5x0x_write_reg(gesture_client, 0xd1, 0xff);
@@ -676,8 +699,11 @@ static int ft5x06_ts_suspend(struct device *dev)
 			ft5x0x_write_reg(gesture_client, 0xd7, 0xff);
 			ft5x0x_write_reg(gesture_client, 0xd8, 0xff);
 		}
-		enable_irq_wake(data->client->irq);
-		CTP_DEBUG("in suspend gesture\n");
+		/* Allow IRQ to wake system - do NOT disable IRQ here */
+		if (enable_irq_wake(data->client->irq))
+			dev_err(dev, "Failed to enable IRQ wake\n");
+		else
+			dev_info(dev, "IRQ wake enabled successfully\n");
 		data->suspended = true;
 		return 0;
 	}
@@ -728,18 +754,24 @@ static int ft5x06_ts_resume(struct device *dev)
 	struct ft5x06_ts_data *data = dev_get_drvdata(dev);
 	int err;
 
+
+#if WT_CTP_GESTURE_SUPPORT
+	/* If gesture was enabled, do NOT power-cycle/reset here.
+	 * Just exit gesture mode and restore IRQ wake symmetry.
+	 */
+	if (READ_ONCE(gtp_gesture_onoff) == '1') {
+		/* Exit gesture mode */
+		ft5x0x_write_reg(gesture_client, 0xD0, 0x00);
+		disable_irq_wake(data->client->irq);
+		data->suspended = false;
+		dev_info(dev, "Gesture resume done\n");
+		return 0;
+	}
+#endif
+
 	if (!data->suspended) {
 		dev_dbg(dev, "Already in awake state\n");
 	}
-
-#if WT_CTP_GESTURE_SUPPORT
-	if (gtp_gesture_onoff == '1') {
-		printk("Resume Gesture TP.\n");
-		ft5x0x_write_reg(gesture_client, 0xD0, 0x00);
-		printk("Resume Gesture TP Done.\n");
-		disable_irq(data->client->irq);
-	}
-#endif
 
 	if (data->pdata->power_on) {
 		err = data->pdata->power_on(true);
@@ -990,6 +1022,11 @@ static int ft5x06_fw_upgrade_start(struct i2c_client *client,
 			dev_err(&client->dev, "Upgrade ID mismatch(%d), IC=0x%x 0x%x, info=0x%x 0x%x\n",
 			i, r_buf[0], r_buf[1],
 			info.upgrade_id_1, info.upgrade_id_2);
+			/* Panel returns 0x00 0x00 - does not support upgrade mode, exit early */
+			if (r_buf[0] == 0x00 && r_buf[1] == 0x00) {
+				dev_info(&client->dev, "Panel does not support upgrade mode - skipping\n");
+				return -ENODEV;
+			}
 		} else
 			break;
 	}
@@ -1212,6 +1249,9 @@ static void fts_ctpm_read_lockdown(struct i2c_client *client, struct ft5x06_ts_d
 			dev_err(&client->dev, "Upgrade ID mismatch(%d), IC=0x%x 0x%x, info=0x%x 0x%x\n",
 				i, r_buf[0], r_buf[1],
 				fts_updateinfo_curr.upgrade_id_1, fts_updateinfo_curr.upgrade_id_2);
+				/* Panel 0x00 0x00 - exit early */
+			if (r_buf[0] == 0x00 && r_buf[1] == 0x00)
+				break;
 		} else
 			break;
 	}
@@ -1308,14 +1348,7 @@ static int fts_ctpm_fw_upgrade_with_i_file(struct ft5x06_ts_data *data)
 			CTP_DEBUG("BIEL+EBBG\n");
 		}
 	} else {
-		CTP_ERROR("read vendor_id fail");
-		return -EPERM;
-	}
-
-	CTP_DEBUG("update firmware size:%d", fw_len);
-	if ((sizeof(CTPM_FW1) < 8) || (sizeof(CTPM_FW2) < 8)) {
-		CTP_ERROR("FW length error\n");
-		return -EPERM;
+		CTP_DEBUG("Unknown panel - skip upgrade"); return 0;
 	}
 
 	if ((pbt_buf[fw_len - 8] ^ pbt_buf[fw_len - 6]) == 0xFF
@@ -2633,6 +2666,8 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 		goto free_reset_gpio;
 	}
 
+	device_init_wakeup(&client->dev, true);
+
 	err = request_threaded_irq(client->irq, NULL,
 		ft5x06_ts_interrupt,
 		pdata->irq_gpio_flags | IRQF_ONESHOT,
@@ -2791,10 +2826,6 @@ static int ft5x06_ts_probe(struct i2c_client *client,
 #endif
 
 	enable_irq(data->client->irq);
-	if (gtp_gesture_onoff == '0'){
-		/* IRQ should be disabled if gesture is off */
-		disable_irq(data->client->irq);
-	}
 
 	return 0;
 

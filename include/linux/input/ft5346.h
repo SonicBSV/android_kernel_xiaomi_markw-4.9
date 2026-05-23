@@ -273,6 +273,7 @@ struct ft5x06_ts_data {
 	const struct ft5x06_ts_platform_data *pdata;
 	struct regulator *vdd;
 	struct regulator *vcc_i2c;
+	bool power_enabled;
 	char fw_name[FT_FW_NAME_MAX_LEN];
 	u8 lockdown_info[FT_LOCKDOWN_SIZE];
 	bool loading_fw;
