@@ -100,8 +100,12 @@
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,float-voltage-mv = <4400>;
 	qcom,resume-delta-mv = <50>;
+	qcom,iterm-ma = <100>;
+	qcom,rparasitic-uohm = <100000>;
+	qcom,fastchg-current-ma = <3000>;
+	qcom,aicl-rerun-period-s = <180>;
         qcom,chg-inhibit-fg;
-	qcom,thermal-mitigation = <2000 1200 1000 800 800>;
+	qcom,thermal-mitigation = <3000 2500 2000 1500 1000>;
 	qcom,charge-unknown-battery;
 	/delete-property/ qcom,parallel-usb-min-current-ma;
 	/delete-property/ qcom,parallel-usb-9v-min-current-ma;
@@ -115,6 +119,8 @@
 &qpnp_fg {
         qcom,battery-data = <&qrd_batterydata>;
 	qcom,resume-soc = <99>;
+	qcom,bcl-lm-threshold-ma = <127>;
+	qcom,bcl-mh-threshold-ma = <405>;
 	qcom,fg-iterm-ma = <150>;
 	qcom,fg-chg-iterm-ma = <100>;
 	qcom,fg-cutoff-voltage-mv = <3400>;
@@ -391,84 +397,40 @@
 };
 };
 
-&i2c_2  { /* i2c 6 */
-		aw2013@45 {
-			compatible = "awinic,aw2013";
-			reg = <0x45>;
-			vdd-supply = <&pm8953_l10>;
-			vcc-supply = <&pm8953_l5>;
+&i2c_2 {
+    status = "okay";
 
-		aw2013,red {
-			aw2013,name = "red";
-			aw2013,id = <0>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		aw2013,green {
-			aw2013,name = "green";
-			aw2013,id = <1>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		aw2013,blue {
-			aw2013,name = "blue";
-			aw2013,id = <2>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		aw2013,white {
-			aw2013,name = "white";
-			aw2013,id = <3>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		aw2013,yellow {
-			aw2013,name = "yellow";
-			aw2013,id = <4>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		aw2013,cyan {
-			aw2013,name = "cyan";
-			aw2013,id = <5>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		aw2013,purple {
-			aw2013,name = "purple";
-			aw2013,id = <6>;
-			aw2013,max-brightness = <255>;
-			aw2013,max-current = <1>;
-			aw2013,rise-time-ms = <2>;
-			aw2013,hold-time-ms = <1>;
-			aw2013,fall-time-ms = <2>;
-			aw2013,off-time-ms = <1>;
-		};
-		};
+    aw2013@45 {
+        compatible = "awinic,aw2013";
+        reg = <0x45>;
+
+        vdd-supply = <&pm8953_l10>;
+        vcc-supply = <&pm8953_l5>;
+
+        /* Опционально: задержка после включения питания (мкс) */
+        aw2013,power-on-delay-us = <2000>;
+
+        aw2013,red {
+            aw2013,name = "red";
+            aw2013,id = <0>;
+            aw2013,max-brightness = <255>;
+            aw2013,max-current = <1>;    /* 0..3 */
+        };
+
+        aw2013,green {
+            aw2013,name = "green";
+            aw2013,id = <1>;
+            aw2013,max-brightness = <255>;
+            aw2013,max-current = <1>;
+        };
+
+        aw2013,blue {
+            aw2013,name = "blue";
+            aw2013,id = <2>;
+            aw2013,max-brightness = <255>;
+            aw2013,max-current = <1>;
+        };
+    };
 };
 
 &led_flash0 {

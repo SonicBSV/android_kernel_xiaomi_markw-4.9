@@ -163,7 +163,8 @@
 			config {
 				pins = "gpio65";
 				drive-strength = <2>;
-				bias-pull-down;
+				bias-pull-up;      /* Pull Up для прерывания */
+				input-enable;      /* Включить вход */
 			};
 		};
 
@@ -176,7 +177,8 @@
 			config {
 				pins = "gpio64";
 				drive-strength = <2>;
-				bias-pull-down;
+				bias-pull-up;      /* Pull Up, чтобы не сбрасывать чип */
+				/* Или bias-no-pull, если драйвер сам держит линию */
 			};
 		};
 	};
